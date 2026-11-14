@@ -40,7 +40,8 @@ public struct PlannerBot: Bot {
     public let name = "planner"
     public init() {}
 
-    static let buildOrder: [Recipe] = [.dryingRack, .clayPot, .shelter, .signalFrame]
+    /// Tools come just before the region they open.
+    static let buildOrder: [Recipe] = [.stoneAxe, .dryingRack, .rope, .clayPot, .torch, .shelter, .signalFrame]
 
     static func gatherSpots(for item: Item) -> [Region] {
         switch item {

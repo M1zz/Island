@@ -92,8 +92,13 @@ RECIPES = {
     "clayPot": (1, [("fiber", 2)], 3, 30, ("structure", "clayPot"), None, "stream"),
     "signalFrame": (3, [("wood", 15), ("fiber", 10), ("stone", 4)], 4, 60, ("structure", "signalFrame"), None, "ridge"),
     "dryWood": (0, [("wood", 3)], 1, 10, ("items", "dryWood", 3), "dryingRack", None),
+    "stoneAxe": (0, [("wood", 2), ("fiber", 2), ("stone", 1)], 2, 12, ("structure", "stoneAxe"), None, None),
+    "rope": (1, [("fiber", 6)], 2, 12, ("structure", "rope"), None, None),
+    "torch": (1, [("dryWood", 2), ("fiber", 2)], 2, 12, ("structure", "torch"), None, None),
 }
-RECIPE_ORDER = ["dryingRack", "shelter", "clayPot", "signalFrame", "dryWood"]
+RECIPE_ORDER = ["dryingRack", "shelter", "clayPot", "signalFrame", "dryWood", "stoneAxe", "rope", "torch"]
+# The tool you must carry to get into a region at all.
+TOOL = dict(jungle="stoneAxe", ridge="rope", summit="torch")
 
 ALL_ACTIONS = []
 for r in REGIONS:
@@ -176,7 +181,8 @@ class Engine:
         if k == "explore":
             r = a[1]
             return (r not in s.discovered and any(r in NEIGH[d] for d in s.discovered)
-                    and self.level("exploration") >= REQ[r])
+                    and self.level("exploration") >= REQ[r]
+                    and (r not in TOOL or TOOL[r] in s.structures))
         if k == "craft":
             req, cost, _, _, out, rs, rr = RECIPES[a[1]]
             if out[0] == "structure" and out[1] in s.structures: return False
@@ -356,7 +362,7 @@ GATHER_SPOTS = {
     "stone": ["ridge", "stream"],
     "food": ["palmGrove", "jungle", "beach"],
 }
-BUILD_ORDER = ["dryingRack", "clayPot", "shelter", "signalFrame"]
+BUILD_ORDER = ["stoneAxe", "dryingRack", "rope", "clayPot", "torch", "shelter", "signalFrame"]
 
 
 def planner_bot(e, rng):
@@ -375,7 +381,7 @@ def planner_bot(e, rng):
     if nxt:
         for item, n in RECIPES[nxt][1]:
             if s.count(item) < n:
-                plan += [("gather", item, r) for r in GATHER_SPOTS[item]]
+                plan += [("gather", item, r) for r in GATHER_SPOTS.get(item, [])]
     if s.count("dryWood") < b.signalDryWood + 3:
         plan.append(("craft", "dryWood"))
         plan += [("gather", "wood", r) for r in GATHER_SPOTS["wood"]]

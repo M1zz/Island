@@ -37,6 +37,19 @@ final class IslandCoreTests: XCTestCase {
         XCTAssertFalse(engine.canPerform(.explore(.summit)))
     }
 
+    func testRegionsBehindToolsStayShut() {
+        // However skilled, the jungle needs an axe.
+        let engine = GameEngine(seed: 1)
+        XCTAssertTrue(engine.canPerform(.explore(.palmGrove)))
+        var bot = PlannerBot()
+        for seed: UInt64 in 1...50 {
+            let state = simulate(seed: seed, bot: &bot)
+            for region in Region.allCases where state.discovered.contains(region) {
+                if let tool = region.requiredTool { XCTAssertTrue(state.has(tool), "\(region) without \(tool)") }
+            }
+        }
+    }
+
     func testSameSeedSameGame() {
         var botA = PlannerBot()
         var botB = PlannerBot()

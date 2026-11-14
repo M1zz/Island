@@ -26,11 +26,24 @@ public enum Item: String, CaseIterable, Codable, CodingKeyRepresentable, Sendabl
     }
 }
 
+/// Things you make once and keep: what stands in camp, and the tools you carry.
 public enum Structure: String, CaseIterable, Codable, Sendable {
     case dryingRack, shelter, clayPot, signalFrame
+    case stoneAxe, rope, torch
+
+    /// Carried, not built: a tool opens the way into a region.
+    public var isTool: Bool {
+        switch self {
+        case .stoneAxe, .rope, .torch: true
+        case .dryingRack, .shelter, .clayPot, .signalFrame: false
+        }
+    }
 
     public var displayName: String {
         switch self {
+        case .stoneAxe: "Stone axe"
+        case .rope: "Rope"
+        case .torch: "Torch"
         case .dryingRack: "Drying rack"
         case .shelter: "Shelter"
         case .clayPot: "Clay pot"
@@ -84,6 +97,17 @@ public enum Region: String, CaseIterable, Codable, Sendable {
         }
     }
 
+    /// What you must carry to get in at all: an axe to cut through the jungle,
+    /// a rope to climb the ridge, a torch for the dark pass to the summit.
+    public var requiredTool: Structure? {
+        switch self {
+        case .beach, .palmGrove, .stream: nil
+        case .jungle: .stoneAxe
+        case .ridge: .rope
+        case .summit: .torch
+        }
+    }
+
     public var difficulty: Int {
         switch self {
         case .beach, .palmGrove: 0
@@ -128,6 +152,7 @@ public enum Region: String, CaseIterable, Codable, Sendable {
 
 public enum Recipe: String, CaseIterable, Codable, Sendable {
     case dryingRack, shelter, clayPot, signalFrame, dryWood
+    case stoneAxe, rope, torch
 
     public enum Output: Sendable {
         case structure(Structure)
@@ -161,6 +186,15 @@ public enum Recipe: String, CaseIterable, Codable, Sendable {
         case .dryWood:
             Spec(requiredLevel: 0, cost: [(.wood, 3)], hours: 1, baseXP: 10,
                  output: .items(.dryWood, 3), requiresStructure: .dryingRack, requiresRegion: nil)
+        case .stoneAxe:
+            Spec(requiredLevel: 0, cost: [(.wood, 2), (.fiber, 2), (.stone, 1)], hours: 2, baseXP: 12,
+                 output: .structure(.stoneAxe), requiresStructure: nil, requiresRegion: nil)
+        case .rope:
+            Spec(requiredLevel: 1, cost: [(.fiber, 6)], hours: 2, baseXP: 12,
+                 output: .structure(.rope), requiresStructure: nil, requiresRegion: nil)
+        case .torch:
+            Spec(requiredLevel: 1, cost: [(.dryWood, 2), (.fiber, 2)], hours: 2, baseXP: 12,
+                 output: .structure(.torch), requiresStructure: nil, requiresRegion: nil)
         }
     }
 
@@ -171,6 +205,9 @@ public enum Recipe: String, CaseIterable, Codable, Sendable {
         case .clayPot: "Clay pot"
         case .signalFrame: "Signal frame"
         case .dryWood: "Dry wood x3"
+        case .stoneAxe: "Stone axe"
+        case .rope: "Rope"
+        case .torch: "Torch"
         }
     }
 }

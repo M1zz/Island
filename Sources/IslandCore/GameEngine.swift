@@ -57,6 +57,7 @@ public struct GameEngine: Sendable {
             return !state.discovered.contains(region)
                 && state.discovered.contains(where: { $0.neighbors.contains(region) })
                 && level(.exploration) >= region.requiredLevel
+                && region.requiredTool.map(state.has) != false
         case let .craft(recipe):
             let spec = recipe.spec
             if case let .structure(structure) = spec.output, state.has(structure) { return false }
