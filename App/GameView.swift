@@ -66,7 +66,7 @@ struct GameView: View {
             // The tools that open the island, ghosted until made.
             HStack(spacing: 3 * px) {
                 ForEach(Structure.allCases.filter(\.isTool), id: \.self) { tool in
-                    PixelImage(image: Art.picture(tool)).opacity(state.has(tool) ? 1 : 0.25)
+                    PixelImage(image: Art.picture(tool)).opacity(state.has(tool) ? 1 : 0.35)
                 }
             }
             .padding(.top, px)
@@ -146,7 +146,7 @@ struct GameView: View {
         HStack(spacing: 3 * px) {
             PixelImage(image: Art.icon(game.here))
             ForEach(Item.allCases.filter { game.here.yields.base(for: $0) > 0 }, id: \.self) { item in
-                PixelImage(image: Art.icon(item)).opacity(0.75)
+                PixelImage(image: Art.icon(item))
             }
         }
         .padding(4 * px)
@@ -158,10 +158,10 @@ struct GameView: View {
             ForEach(Item.allCases, id: \.self) { item in
                 let count = state.count(item)
                 VStack(spacing: px) {
-                    PixelImage(image: Art.icon(item)).opacity(count > 0 ? 1 : 0.35)
+                    PixelImage(image: Art.icon(item)).opacity(count > 0 ? 1 : 0.5)
                     PixelImage(image: Art.number(count, color: count > 0 ? Ink.text : Ink.faint))
                 }
-                .frame(width: 20 * px, height: 24 * px)
+                .frame(width: 22 * px, height: 31 * px)
                 .pixelPanel(face: 0xfff3d6)
             }
         }
@@ -224,7 +224,7 @@ struct GameView: View {
                         PixelImage(image: Art.number(engine.hours(for: .craft(recipe))))
                     }
                     .padding(.horizontal, 4 * px)
-                    .frame(width: 190 * px, height: 18 * px)
+                    .frame(width: 230 * px, height: 20 * px)
                     .pixelPanel(face: enabled ? 0xfff3d6 : Ink.panelDark)
                     .opacity(enabled ? 1 : 0.8)
                     .contentShape(Rectangle())

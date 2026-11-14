@@ -424,40 +424,170 @@ final class IslandScene: SKScene {
         for id in changed { propNodes[id].map(show) }
     }
 
-    /// Turns the castaway to the thing and works at it, blow after blow, until `setProgress(nil)`.
-    func work(on id: IslandMap.Prop.ID, hit: @escaping () -> Void) {
-        guard let node = propNodes[id], let kind = node.userData?["kind"] as? IslandMap.Kind else { return }
-        let dx = node.position.x - hero.position.x, dy = node.position.y - hero.position.y
-        facing = abs(dx) > abs(dy) * 0.6 ? .side : dy > 0 ? .back : .front
-        if facing == .side { hero.xScale = dx < 0 ? -1 : 1 }
-        // A giant barely stirs.
-        let sway: CGFloat = id.tall ? 0.012 : 0.09
+    /// How the castaway goes about a job.
+    enum Motion {
+        /// Swinging at it: wood, rock, brush, or building something.
+        case strike
+        /// Down on the heels, picking it up.
+        case pick
+        /// Up the trunk for coconuts.
+        case climb
+        /// Standing at the water with a line out.
+        case cast
+        /// Kneeling over water or a fire.
+        case kneel
+        /// Peering ahead for a way through.
+        case search
+    }
+
+    /// Starts the castaway on a job and keeps at it until `setProgress(nil)`.
+    /// `hit` fires on every blow, for the sound.
+    func startWork(_ motion: Motion, on id: IslandMap.Prop.ID? = nil, axe: Bool = false, hit: @escaping () -> Void) {
+        guard !asleep else { return }
+        hero.removeAction(forKey: "step")
+        workOrigin = hero.position
+        let node = id.flatMap { propNodes[$0] }
+        let kind = node?.userData?["kind"] as? IslandMap.Kind
+        let target = node?.position ?? (motion == .kneel && fire.position.x - hero.position.x != 0 && hypot(fire.position.x - hero.position.x, fire.position.y - hero.position.y) < 30 ? fire.position : nil)
+        if let target {
+            hero.xScale = target.x < hero.position.x ? -1 : 1
+        } else if motion == .cast {
+            // Face whichever side the sea is on.
+            let spot = heroSpot
+            hero.xScale = IslandMap.shore(spot.x - 20, spot.y) > IslandMap.shore(spot.x + 20, spot.y) ? -1 : 1
+        }
+        facing = .side
+        let side = hero.xScale
+
+        // One blow: the thing shudders and bits fly.
+        let tall = id?.tall ?? false
         let chips: [UInt32] = switch kind {
         case .palm, .bush, .fern: [0x6f9f48, 0x487f3f]
-        case .tree, .driftwood: [0xa87a48, 0x86592f]
+        case .tree, .driftwood, nil: [0xa87a48, 0x86592f]
         case .snag: [0xa89d92, 0xd6cec4]
         case .rock: [0x9a8f85, 0xc9c0b6]
         case .shell: [0xf29bb0, 0xffffff]
         }
+        let sway: CGFloat = tall ? 0.012 : 0.09
+        let wiggle = SKAction.sequence([.rotate(toAngle: sway, duration: 0.06), .rotate(toAngle: -sway, duration: 0.1), .rotate(toAngle: 0, duration: 0.06)])
         let blow = SKAction.run { [weak self, weak node] in
-            guard let self, let node else { return }
+            guard let self else { return }
             hit()
-            // Where the hands are: low on a giant, right on a small thing.
-            let at = CGPoint(x: node.position.x + (id.tall ? (dx < 0 ? 6 : -6) : 0), y: node.position.y + (id.tall ? 10 : 3))
+            node?.run(wiggle, withKey: "worked")
+            // Where the hands land: low on a giant, right on a small thing, else just in front.
+            let at = node.map { CGPoint(x: $0.position.x - (tall ? side * 6 : 0), y: $0.position.y + (tall ? 10 : 3)) }
+                ?? CGPoint(x: self.hero.position.x + side * 8, y: self.hero.position.y + 3)
             for index in 0..<4 {
                 let chip = SKSpriteNode(color: NSColor(Color(hex: chips[index % 2])), size: CGSize(width: index % 2 + 1, height: 1))
                 chip.position = at
-                chip.zPosition = node.zPosition + 1
+                chip.zPosition = self.hero.zPosition + 2
                 let out = CGFloat(index) * 5 - 7.5 + CGFloat.random(in: -2...2)
                 let arc = SKAction.sequence([.moveBy(x: out * 0.5, y: 7, duration: 0.14), .moveBy(x: out * 0.5, y: -9, duration: 0.2)])
                 chip.run(.sequence([.group([arc, .sequence([.wait(forDuration: 0.22), .fadeOut(withDuration: 0.12)])]), .removeFromParent()]))
                 self.addChild(chip)
             }
         }
-        let wiggle = SKAction.sequence([.rotate(toAngle: sway, duration: 0.06), .rotate(toAngle: -sway, duration: 0.1), .rotate(toAngle: 0, duration: 0.06)])
-        node.run(.repeatForever(.sequence([blow, wiggle, .wait(forDuration: 0.3)])), withKey: "worked")
+        func pose(_ image: CGImage) -> SKAction { .setTexture(stamp(image)) }
         worked = node
+        held.removeAllActions()
+        held.isHidden = true
+        bobber.isHidden = true
+
+        let job: SKAction
+        switch motion {
+        case .strike:
+            held.texture = stamp(axe ? Art.handAxe : Art.handStick)
+            held.size = held.texture!.size()
+            held.anchorPoint = CGPoint(x: 0.5, y: 0.1)
+            held.position = CGPoint(x: 4, y: 6)
+            held.zRotation = 0.9
+            held.isHidden = false
+            let raise = SKAction.rotate(toAngle: 0.9, duration: 0.24)
+            raise.timingMode = .easeOut
+            let chop = SKAction.rotate(toAngle: -1.35, duration: 0.09)
+            held.run(.repeatForever(.sequence([raise, .wait(forDuration: 0.08), chop, .wait(forDuration: 0.21)])))
+            job = .repeatForever(.sequence([
+                pose(Art.heroArmUp), .wait(forDuration: 0.32),
+                pose(Art.heroArmDown), .wait(forDuration: 0.09), blow, .wait(forDuration: 0.21),
+            ]))
+        case .pick:
+            job = .repeatForever(.sequence([
+                pose(Art.heroCrouch), .wait(forDuration: 0.3),
+                pose(Art.heroReach), blow, .wait(forDuration: 0.3),
+            ]))
+        case .kneel:
+            let smoke = SKAction.run { [weak self] in
+                guard let self, let target, target == self.fire.position else { return }
+                let puff = SKSpriteNode(color: NSColor(white: 0.85, alpha: 1), size: CGSize(width: 2, height: 2))
+                puff.position = CGPoint(x: target.x + CGFloat.random(in: -2...2), y: target.y + 4)
+                puff.zPosition = self.fire.zPosition + 1
+                puff.alpha = 0.8
+                puff.run(.sequence([.group([.moveBy(x: 3, y: 16, duration: 0.9), .fadeOut(withDuration: 0.9), .scale(to: 2, duration: 0.9)]), .removeFromParent()]))
+                self.addChild(puff)
+            }
+            job = .repeatForever(.sequence([
+                pose(Art.heroCrouch), .wait(forDuration: 0.22),
+                pose(Art.heroReach), smoke, .run(hit), .wait(forDuration: 0.22),
+            ]))
+        case .climb:
+            guard let node else { return }
+            climbing = true
+            facing = .back
+            hero.xScale = 1
+            let hand = SKAction.repeatForever(.animate(with: [stamp(Art.heroClimbA), stamp(Art.heroClimbB)], timePerFrame: 0.14))
+            hero.run(hand, withKey: "hands")
+            // Up beside the trunk to the crown, shake the nuts loose, and back down.
+            let foot = CGPoint(x: node.position.x, y: node.position.y + 2)
+            job = .sequence([
+                .move(to: foot, duration: 0.2),
+                .moveBy(x: 4, y: 78, duration: 1.0),
+                blow, .wait(forDuration: 0.3), blow, .wait(forDuration: 0.3),
+                .moveBy(x: -4, y: -78, duration: 0.6),
+                .run { [weak self] in
+                    guard let self else { return }
+                    self.hero.removeAction(forKey: "hands")
+                    self.hero.texture = self.standing[.back]
+                },
+            ])
+        case .cast:
+            hero.texture = stamp(Art.heroArmDown)
+            held.texture = stamp(Art.rod)
+            held.size = held.texture!.size()
+            held.anchorPoint = CGPoint(x: 0, y: 0)
+            held.position = CGPoint(x: 4, y: 5)
+            held.zRotation = 0
+            held.isHidden = false
+            held.run(.repeatForever(.sequence([.rotate(toAngle: 0.06, duration: 0.7), .rotate(toAngle: -0.03, duration: 0.7)])))
+            bobber.position = CGPoint(x: hero.position.x + side * 15.5, y: hero.position.y + 3)
+            bobber.zPosition = hero.zPosition + 1
+            bobber.isHidden = false
+            bobber.removeAllActions()
+            bob(bobber, by: 1, every: 0.5)
+            job = .repeatForever(.sequence([.wait(forDuration: 1.1), .run(hit)]))
+        case .search:
+            // Look one way, then the other, shading the eyes.
+            job = .repeatForever(.sequence([
+                pose(Art.heroArmUp), .wait(forDuration: 0.5), .scaleX(to: -side, duration: 0), .run(hit),
+                .wait(forDuration: 0.5), .scaleX(to: side, duration: 0), .run(hit),
+            ]))
+        }
+        hero.run(job, withKey: "work")
     }
+
+    private var climbing = false
+    private lazy var held: SKSpriteNode = {
+        let held = SKSpriteNode()
+        held.zPosition = 0.5
+        held.isHidden = true
+        hero.addChild(held)
+        return held
+    }()
+    private lazy var bobber: SKSpriteNode = {
+        let bobber = SKSpriteNode(texture: stamp(Art.float))
+        bobber.isHidden = true
+        addChild(bobber)
+        return bobber
+    }()
 
     /// The work paid off: small things are carried away, a palm drops its coconuts.
     func collect(_ id: IslandMap.Prop.ID) {
@@ -514,6 +644,12 @@ final class IslandScene: SKScene {
         progressFill.isHidden = value == nil
         guard let value else {
             hero.removeAction(forKey: "work")
+            hero.removeAction(forKey: "hands")
+            held.removeAllActions()
+            held.isHidden = true
+            bobber.isHidden = true
+            climbing = false
+            if !asleep, hero.zRotation == 0 { hero.texture = standing[facing] }
             worked?.removeAction(forKey: "worked")
             worked?.zRotation = 0
             worked = nil
@@ -523,14 +659,6 @@ final class IslandScene: SKScene {
             return
         }
         progressFill.xScale = CGFloat(min(max(value, 0), 1))
-        hero.removeAction(forKey: "step")
-        if hero.action(forKey: "work") == nil, !asleep {
-            // Keep facing whatever is being worked on.
-            hero.texture = standing[facing]
-            workOrigin = hero.position
-            let hop = SKAction.sequence([.moveBy(x: 0, y: 2, duration: 0.14), .moveBy(x: 0, y: -2, duration: 0.14), .wait(forDuration: 0.12)])
-            hero.run(.repeatForever(hop), withKey: "work")
-        }
     }
 
     func setAsleep(_ sleeping: Bool) {
@@ -735,7 +863,7 @@ final class IslandScene: SKScene {
     override func update(_ currentTime: TimeInterval) {
         let delta = min(0.1, currentTime - (lastUpdate ?? currentTime))
         lastUpdate = currentTime
-        if !asleep, !mapOpen { hero.zPosition = mapHeight - hero.position.y }
+        if !asleep, !mapOpen { hero.zPosition = climbing ? (worked?.zPosition ?? 0) + 1 : mapHeight - hero.position.y }
         // Grass and brush stir as you push past.
         if hero.action(forKey: "step") != nil {
             for (id, node) in propNodes where !id.tall && !node.isHidden && node.action(forKey: "brushed") == nil
@@ -746,7 +874,7 @@ final class IslandScene: SKScene {
             }
         }
         // Walk behind a giant and it turns to glass, so you never lose yourself.
-        for giant in giants.values where !giant.isHidden {
+        for giant in giants.values where !giant.isHidden && giant !== worked {
             let behind = !mapOpen && hero.position.y > giant.position.y && hero.position.y < giant.position.y + giant.size.height - 8
                 && abs(hero.position.x - giant.position.x) < giant.size.width / 2 - 6
             let target: CGFloat = behind ? 0.35 : 1

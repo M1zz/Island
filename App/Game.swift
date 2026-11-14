@@ -185,12 +185,18 @@ final class Game: ObservableObject {
             return
         }
         inHand = nil
-        if case .gather = action, let nearProp {
+        var motion = IslandScene.Motion.strike
+        switch action {
+        case .gather:
             inHand = nearProp
-            scene.work(on: nearProp) { Sound.shared.play(.work) }
-        } else {
-            Sound.shared.play(.work)
+            let kind = IslandMap.props(around: scene.heroSpot.x, scene.heroSpot.y, reach: 40).first { $0.id == nearProp }?.kind
+            motion = kind == .palm ? .climb : kind?.isCarriedOff == true ? .pick : .strike
+        case .fish: motion = .cast
+        case .fetchWater, .makeFire, .lightSignal: motion = .kneel
+        case .explore: motion = .search
+        default: break
         }
+        scene.startWork(motion, on: inHand, axe: engine.state.has(.stoneAxe)) { Sound.shared.play(.work) }
         working = action
         scene.setPrompt(nil)
         scene.point(at: nil)
