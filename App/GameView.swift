@@ -13,6 +13,13 @@ struct GameView: View {
     var body: some View {
         SpriteView(scene: game.scene)
             .frame(width: CGFloat(IslandMap.viewWidth) * px, height: CGFloat(IslandMap.viewHeight) * px)
+            // No health bar: when the body is failing, the edges of the world go red.
+            .overlay {
+                Rectangle()
+                    .strokeBorder(Color(hex: 0xb01818), lineWidth: 5 * px)
+                    .opacity(min(0.85, max(0, (60 - state.needs.health) / 60)))
+                    .allowsHitTesting(false)
+            }
             // The map gets the whole window to itself.
             .overlay(alignment: .topLeading) {
                 VStack(alignment: .leading, spacing: 3 * px) {
@@ -40,8 +47,7 @@ struct GameView: View {
 
     private var needs: some View {
         HStack(spacing: 5 * px) {
-            // What actually kills a castaway: thirst, hunger, cold, exhaustion. The heart is what they leave of you.
-            gauge(Art.heart, state.needs.health, 0xe0564c)
+            // What actually kills a castaway: thirst, hunger, cold, exhaustion.
             gauge(Art.drop, state.needs.thirst, 0x4a9bdc)
             gauge(Art.stomach, state.needs.hunger, 0xf08a3c)
             gauge(Art.thermometer, state.needs.warmth, 0xe8743c)
@@ -55,7 +61,7 @@ struct GameView: View {
     private func gauge(_ icon: CGImage, _ value: Double, _ color: UInt32) -> some View {
         HStack(spacing: 2 * px) {
             PixelImage(image: icon)
-            PixelBar(value: value / 100, color: value < 25 ? 0xd0342c : color, width: 26)
+            PixelBar(value: value / 100, color: value < 25 ? 0xd0342c : color, width: 30)
         }
     }
 
