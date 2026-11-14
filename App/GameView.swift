@@ -5,6 +5,7 @@ import SwiftUI
 /// The island fills the window; everything you need to know floats over it as pictures and gauges.
 struct GameView: View {
     @StateObject private var game = Game()
+    @ObservedObject private var sound = Sound.shared
 
     private var engine: GameEngine { game.engine }
     private var state: GameState { game.engine.state }
@@ -62,6 +63,13 @@ struct GameView: View {
                     PixelBar(value: state.skills.progress(skill, balance: engine.balance), color: 0x8fcf5a, width: 24, height: 4)
                 }
             }
+            // The tools that open the island, ghosted until made.
+            HStack(spacing: 3 * px) {
+                ForEach(Structure.allCases.filter(\.isTool), id: \.self) { tool in
+                    PixelImage(image: Art.picture(tool)).opacity(state.has(tool) ? 1 : 0.25)
+                }
+            }
+            .padding(.top, px)
         }
         .padding(4 * px)
         .pixelPanel()
@@ -82,6 +90,12 @@ struct GameView: View {
                 }
             }
             PixelImage(image: Art.storm)
+            Button { sound.muted.toggle() } label: {
+                PixelImage(image: sound.muted ? Art.speakerOff : Art.speaker)
+                    .frame(width: 13 * px, height: 12 * px)
+                    .pixelPanel(face: Ink.panelDark)
+            }
+            .buttonStyle(.plain)
             Button { game.paused.toggle() } label: {
                 PixelImage(image: game.paused ? Art.play : Art.pause)
                     .frame(width: 13 * px, height: 12 * px)

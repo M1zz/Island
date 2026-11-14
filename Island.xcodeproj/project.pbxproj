@@ -16,6 +16,7 @@
 		5F5E78BD72E12F4B6F89FE0F /* Journal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 892D2577E074FD512DB97CD8 /* Journal.swift */; };
 		657590F72C0725BBE62C1CD8 /* PixelKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A827A0DDE75B564298001762 /* PixelKit.swift */; };
 		7A61EA8AD497E93A13E2EC00 /* IslandCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB159BF1E4C01733B9C6371E /* IslandCoreTests.swift */; };
+		7AA0CEF38E0BE5F694A4AD8F /* Sound.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A9352852A91F97B1306BBA /* Sound.swift */; };
 		8FF66EC9FCEBE6B1B5CC6E91 /* IslandScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB67316A1A9BD6B489314581 /* IslandScene.swift */; };
 		AB57D97CB369E9C8262AF7E4 /* libIslandCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2056683D63309B7A5359A0F0 /* libIslandCore.a */; };
 		BED324403636E5FA79A7805F /* IslandMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C844D91EA5FB30AC34D902 /* IslandMap.swift */; };
@@ -86,6 +87,7 @@
 		E22E6573423A3D2B7F6FA5A8 /* RNG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RNG.swift; sourceTree = "<group>"; };
 		F290D1D745A3139168DACB67 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
 		F3B1627EC67BCB1AF02FE0D6 /* Art.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Art.swift; sourceTree = "<group>"; };
+		F4A9352852A91F97B1306BBA /* Sound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sound.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,6 +136,7 @@
 				48C844D91EA5FB30AC34D902 /* IslandMap.swift */,
 				AB67316A1A9BD6B489314581 /* IslandScene.swift */,
 				A827A0DDE75B564298001762 /* PixelKit.swift */,
+				F4A9352852A91F97B1306BBA /* Sound.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -425,6 +428,7 @@
 				BED324403636E5FA79A7805F /* IslandMap.swift in Sources */,
 				8FF66EC9FCEBE6B1B5CC6E91 /* IslandScene.swift in Sources */,
 				657590F72C0725BBE62C1CD8 /* PixelKit.swift in Sources */,
+				7AA0CEF38E0BE5F694A4AD8F /* Sound.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

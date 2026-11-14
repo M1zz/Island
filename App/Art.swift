@@ -452,7 +452,7 @@ enum Art {
         return Bitmap.image(width: width, height: height, pixels: pixels)
     }()
     static let mountain: CGImage = {
-        let width = 56 * IslandMap.scale, height = 40 * IslandMap.scale
+        let width = IslandMap.mountain.width, height = IslandMap.mountain.height
         var pixels = [UInt32?](repeating: nil, count: width * height)
         for y in 0..<height {
             let wobble = Double((y * 7919) % 7) - 3
@@ -753,8 +753,55 @@ enum Art {
         }
     }
 
+    static let axe = Bitmap.image([
+        ".CCC...",
+        "CvvcCt.",
+        "CvccCt.",
+        ".CCCt..",
+        "...t...",
+        "..t....",
+        ".T.....",
+    ])
+    static let rope = Bitmap.image([
+        ".TTTT..",
+        "Tn..nT.",
+        "T.TT.T.",
+        "Tn..nT.",
+        ".TTTTn.",
+        ".....Tn",
+        "......T",
+    ])
+    static let speaker = Bitmap.image([
+        "...k...",
+        "..kk.k.",
+        "kkkk..k",
+        "kkkk..k",
+        "..kk.k.",
+        "...k...",
+    ])
+    static let speakerOff = Bitmap.image([
+        "...k...",
+        "..kk...",
+        "kkkkr.r",
+        "kkkk.r.",
+        "..kkr.r",
+        "...k...",
+    ])
+    static let torch = Bitmap.image([
+        "...o...",
+        "..oyo..",
+        "..oyo..",
+        "..kTk..",
+        "...t...",
+        "...t...",
+        "...T...",
+    ])
+
     static func picture(_ structure: Structure) -> CGImage {
         switch structure {
+        case .stoneAxe: axe
+        case .rope: rope
+        case .torch: torch
         case .dryingRack: dryingRack
         case .shelter: shelter
         case .clayPot: clayPot

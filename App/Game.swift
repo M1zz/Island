@@ -9,7 +9,7 @@ struct Prompt: Equatable {
     let blocker: Blocker?
 
     enum Blocker: Equatable {
-        case level(Int), noPath, rescueList, wood, daylight
+        case level(Int), tool(Structure), noPath, rescueList, wood, daylight
     }
 
     var enabled: Bool { blocker == nil }
@@ -19,6 +19,7 @@ struct Prompt: Equatable {
         switch blocker {
         case nil: [Art.spaceKey, action.icon] + (hours > 0 ? [Art.hourglass, Art.number(hours)] : [])
         case let .level(level): [action.icon, Art.cross, Art.icon(Skill.exploration), Art.up, Art.number(level)]
+        case let .tool(tool): [action.icon, Art.cross, Art.picture(tool)]
         case .noPath: [action.icon, Art.cross]
         case .rescueList: [action.icon, Art.cross, Art.todo]
         case .wood: [action.icon, Art.cross, Art.log]
@@ -61,7 +62,7 @@ final class Game: ObservableObject {
         static let down: Set<UInt16> = [125, 1], up: Set<UInt16> = [126, 13]
         static let act: Set<UInt16> = [49, 14, 36]
         static let craft: UInt16 = 8, pause: UInt16 = 35, escape: UInt16 = 53, map: UInt16 = 46
-        static let digits: [UInt16] = [18, 19, 20, 21, 23]
+        static let digits: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
     }
 
     /// Real seconds for one game hour while nothing is happening.
@@ -74,7 +75,7 @@ final class Game: ObservableObject {
     private var idle = 0.0
     private var clock = 6.0
     private var held: Set<UInt16> = []
-    private var nearProp: Int?
+    private var nearProp: IslandMap.Prop.ID?
     private let journalURL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".island/journal.json")
 
@@ -139,8 +140,8 @@ final class Game: ObservableObject {
                 paused = false
             } else if mapOpen {
                 mapOpen = false
-            } else if !crafting, let prompt, prompt.enabled {
-                begin(prompt.action)
+            } else if !crafting, let prompt {
+                if prompt.enabled { begin(prompt.action) } else { Sound.shared.play(.blocked) }
             }
         case _ where crafting && Key.digits.contains(key):
             let index = Key.digits.firstIndex(of: key)!
@@ -155,12 +156,14 @@ final class Game: ObservableObject {
         guard case .idle = phase, !paused, !engine.state.isOver else { return }
         mapOpen = false
         crafting.toggle()
+        Sound.shared.play(.tick)
     }
 
     func toggleMap() {
         guard !engine.state.isOver else { return }
         crafting = false
         mapOpen.toggle()
+        Sound.shared.play(.tick)
     }
 
     func craft(_ recipe: Recipe) {
@@ -177,6 +180,7 @@ final class Game: ObservableObject {
         }
         if case .gather = action, let nearProp { scene.shake(prop: nearProp) }
         working = action
+        Sound.shared.play(.work)
         scene.setPrompt(nil)
         phase = .working(action, from: clock, elapsed: 0, duration: 0.9 + Double(engine.hours(for: action)) * 0.8)
     }
@@ -198,7 +202,7 @@ final class Game: ObservableObject {
 
     private func canWalk(_ x: Int, _ y: Int) -> Bool {
         guard let region = IslandMap.region(x: x, y: y) else { return false }
-        return IslandMap.shore(x, y) < 0.996 && engine.state.discovered.contains(region) && !IslandMap.blocked(x, y)
+        return IslandMap.shore(x, y) < 0.9985 && engine.state.discovered.contains(region) && !IslandMap.blocked(x, y)
     }
 
     /// The closest thing worth doing from where the castaway stands.
@@ -218,34 +222,34 @@ final class Game: ObservableObject {
             found = .lightSignal
         } else {
             var best = 13.0
-            for (index, prop) in IslandMap.props.enumerated() {
-                let item = prop.prop.item
+            for prop in IslandMap.props(around: spot.x, spot.y, reach: 24) {
+                let item = prop.kind.item
                 guard prop.region.yields.base(for: item) > 0,
                       state.discovered.contains(prop.region) else { continue }
                 // A giant's trunk keeps you at arm's length.
-                let d = distance(prop.x, prop.y - 2) - (prop.prop.isTall ? 8 : 0)
+                let d = distance(prop.x, prop.y - 2) - (prop.kind.isTall ? 8 : 0)
                 if d < best {
                     best = d
-                    nearProp = index
+                    nearProp = prop.id
                     found = .gather(item, prop.region)
                 }
             }
         }
-        if found == nil, state.discovered.contains(.stream), IslandMap.streamDistance(spot.x, spot.y) < 22 {
+        if found == nil, state.discovered.contains(.stream), IslandMap.streamDistance(spot.x, spot.y) < 34 {
             found = .fetchWater
         }
         if found == nil {
             // Fog within reach means land to explore.
             for step in 0..<16 {
                 let angle = Double(step) / 16 * 2 * .pi
-                let x = spot.x + Int((cos(angle) * 10).rounded()), y = spot.y + Int((sin(angle) * 10).rounded())
+                let x = spot.x + Int((cos(angle) * 14).rounded()), y = spot.y + Int((sin(angle) * 14).rounded())
                 if let region = IslandMap.region(x: x, y: y), !state.discovered.contains(region) {
                     found = .explore(region)
                     break
                 }
             }
         }
-        if found == nil, here == .beach, IslandMap.shore(spot.x, spot.y) > 0.982 {
+        if found == nil, here == .beach, IslandMap.shore(spot.x, spot.y) > 0.99 {
             found = .fish
         }
 
@@ -262,6 +266,7 @@ final class Game: ObservableObject {
         let state = engine.state
         switch action {
         case let .explore(region):
+            if let tool = region.requiredTool, !state.has(tool) { return .tool(tool) }
             if engine.level(.exploration) < region.requiredLevel { return .level(region.requiredLevel) }
             if !state.discovered.contains(where: { $0.neighbors.contains(region) }) { return .noPath }
         case .lightSignal:
@@ -368,6 +373,12 @@ final class Game: ObservableObject {
             notes.append([Art.icon(skill), Art.up, Art.number(engine.level(skill))])
         }
         scene.popup(notes)
+        let state = engine.state
+        Sound.shared.play(
+            !result.success ? .fail
+                : state.discovered.count > before.state.discovered.count ? .discover
+                : Skill.allCases.contains { engine.level($0) > before.level($0) } ? .levelUp
+                : state.structures.count > before.state.structures.count ? .built : .gain)
 
         phase = .idle
         refresh()
@@ -376,6 +387,7 @@ final class Game: ObservableObject {
 
     private func startNight() {
         sleeping = true
+        Sound.shared.play(.night)
         crafting = false
         idle = 0
         prompt = nil
@@ -401,6 +413,7 @@ final class Game: ObservableObject {
         sleeping = false
         phase = .idle
         scene.popup([[Art.sun, Art.number(engine.state.day)]])
+        Sound.shared.play(.morning)
         refresh()
     }
 
@@ -416,6 +429,7 @@ final class Game: ObservableObject {
             saveError = error.localizedDescription
         }
         scene.finish(outcome)
+        if case .rescued = outcome { Sound.shared.play(.rescued) } else { Sound.shared.play(.lost) }
         showClock()
     }
 
