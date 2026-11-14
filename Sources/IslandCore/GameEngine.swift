@@ -129,8 +129,10 @@ public struct GameEngine: Sendable {
 
         if case .rest = action {
             state.hoursLeft -= 1
-            state.needs.fatigue = max(0, state.needs.fatigue - balance.restRecoveryPerHour)
-            return ActionResult(success: true, messages: [])
+            state.needs.fatigue = min(100, state.needs.fatigue + balance.awakeFatiguePerHour)
+            let messages = pass(hours: 1)
+            state.log.append(contentsOf: messages)
+            return ActionResult(success: true, messages: messages)
         }
 
         let cost = hours(for: action)
@@ -231,6 +233,7 @@ public struct GameEngine: Sendable {
             success = rng.chance(clamp(probability, 0.05, 0.95))
             state.fireLitToday = success
             messages.append(success ? "The fire caught. Tonight you eat cooked food." : "The fire died out.")
+            messages += boil()
             messages += gainXP(15, .survival, difficulty: 1 + (raining ? 1 : 0), failed: !success, key: "makeFire")
 
         case .lightSignal:
@@ -250,6 +253,8 @@ public struct GameEngine: Sendable {
             break
         }
 
+        messages += pass(hours: cost)
+
         if state.outcome == nil, state.needs.health <= 0 {
             state.outcome = .died(day: state.day, cause: .injuries)
             messages.append("Your injuries were too much.")
@@ -259,6 +264,48 @@ public struct GameEngine: Sendable {
     }
 
     // MARK: - Internals
+
+    /// Waking hours go by: you get thirstier and hungrier the whole time, not just overnight,
+    /// and you drink when you need to if there is anything to drink.
+    private mutating func pass(hours: Int) -> [String] {
+        state.hoursSpentToday += hours
+        wear(hours: hours)
+        return drink()
+    }
+
+    private mutating func wear(hours: Int) {
+        let share = Double(hours) / Double(balance.hoursPerDay)
+        state.needs.thirst = max(0, state.needs.thirst - balance.thirstDecayPerDay * share)
+        state.needs.hunger = max(0, state.needs.hunger - balance.hungerDecayPerDay * share)
+    }
+
+    /// With a fire going and a pot to put on it, stream water is boiled and becomes clean.
+    private mutating func boil() -> [String] {
+        guard state.fireLitToday, state.has(.clayPot), state.count(.water) > 0 else { return [] }
+        let amount = state.count(.water)
+        state.inventory[.cleanWater, default: 0] += amount
+        state.inventory[.water] = 0
+        return ["Boiled \(amount) water over the fire."]
+    }
+
+    /// Clean water first. Stream water straight from the bag can make you sick.
+    private mutating func drink() -> [String] {
+        var messages: [String] = []
+        while state.needs.thirst <= balance.drinkThreshold && state.water > 0 {
+            let clean = state.count(.cleanWater) > 0
+            state.inventory[clean ? Item.cleanWater : Item.water, default: 0] -= 1
+            state.needs.thirst = min(100, state.needs.thirst + balance.drinkRestore)
+            if !clean {
+                let chance = balance.rawWaterSicknessChance * max(0, 1 - 0.08 * Double(level(.survival)))
+                if rng.chance(chance) {
+                    state.needs.health -= balance.sicknessDamage
+                    state.needs.fatigue = min(100, state.needs.fatigue + balance.sicknessFatigue)
+                    messages.append("Unboiled water made you sick.")
+                }
+            }
+        }
+        return messages
+    }
 
     private mutating func rollYield(base: Double, skill: Skill) -> Int {
         let multiplier = 1 + balance.yieldPerLevel * Double(level(skill))
@@ -293,26 +340,10 @@ public struct GameEngine: Sendable {
         }
         state.needs.fatigue = clamp(fatigue, 0, 100)
 
-        // Needs decay
-        state.needs.thirst = max(0, state.needs.thirst - balance.thirstDecayPerDay)
-        state.needs.hunger = max(0, state.needs.hunger - balance.hungerDecayPerDay)
-
-        // Drink
-        // Clean water first. Stream water is only safe boiled: a fire and a pot to boil it in.
-        let boiled = state.fireLitToday && state.has(.clayPot)
-        while state.needs.thirst <= balance.drinkThreshold && state.water > 0 {
-            let clean = state.count(.cleanWater) > 0
-            state.inventory[clean ? Item.cleanWater : Item.water, default: 0] -= 1
-            state.needs.thirst = min(100, state.needs.thirst + balance.drinkRestore)
-            if !clean && !boiled {
-                let chance = balance.rawWaterSicknessChance * max(0, 1 - 0.08 * Double(level(.survival)))
-                if rng.chance(chance) {
-                    state.needs.health -= balance.sicknessDamage
-                    state.needs.fatigue = min(100, state.needs.fatigue + balance.sicknessFatigue)
-                    messages.append("Unboiled water made you sick.")
-                }
-            }
-        }
+        // The rest of the day's thirst and hunger, for the hours slept through.
+        wear(hours: max(0, balance.hoursPerDay - state.hoursSpentToday))
+        messages += boil()
+        messages += drink()
 
         // Eat
         let meal = state.fireLitToday ? balance.cookedMealRestore : balance.mealRestore
@@ -367,6 +398,7 @@ public struct GameEngine: Sendable {
             if state.has(.clayPot) { state.inventory[.cleanWater, default: 0] += 3 }
         }
         state.fireLitToday = false
+        state.hoursSpentToday = 0
         state.actionsToday = [:]
         let lostHours = Int(state.needs.fatigue / balance.fatiguePerLostHour)
         state.hoursLeft = max(2, balance.hoursPerDay - lostHours)

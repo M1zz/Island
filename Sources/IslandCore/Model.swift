@@ -226,8 +226,8 @@ public enum Action: Hashable, Codable, Sendable {
     case craft(Recipe)
     case makeFire
     case lightSignal
-    /// Let one hour pass doing nothing. Same recovery as an hour of rest before sleep,
-    /// so idling in a real-time front end never changes the balance.
+    /// Let one waking hour pass doing nothing useful. It costs what any hour costs:
+    /// thirst, hunger, a little energy. Turning in early is the only real rest.
     case rest
     /// Rest for the remaining hours and end the day.
     case sleep

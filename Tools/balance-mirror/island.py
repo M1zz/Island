@@ -127,6 +127,7 @@ class State:
         self.discovered = {"beach"}
         self.structures = set()
         self.fireLitToday = False
+        self.hoursSpentToday = 0
         self.actionsToday = {}
         self.firstTimes = set()
         self.outcome = None
@@ -277,6 +278,7 @@ class Engine:
             ok = self.rng.chance(clamp(p, 0.05, 0.95))
             s.fireLitToday = ok
             self.gain(15, "survival", 1 + (1 if raining else 0), not ok, "makeFire")
+            self.boil()
         elif k == "lightSignal":
             lv = self.level("survival")
             rp = 0.3 if s.weather == "rain" else 0
@@ -284,9 +286,36 @@ class Engine:
             if ok: s.outcome = ("rescued", s.day)
             else: s.add("dryWood", -b.signalFailureWoodLoss)
             self.gain(40, "survival", 3, not ok, "lightSignal")
+        s.hoursSpentToday += cost
+        self.wear(cost)
+        self.drink()
         if s.outcome is None and s.health <= 0:
             s.outcome = ("died", s.day, "injuries")
         return ok
+
+    def wear(self, hours):
+        s, b = self.s, self.b
+        share = hours / b.hoursPerDay
+        s.thirst = max(0, s.thirst - b.thirstDecayPerDay * share)
+        s.hunger = max(0, s.hunger - b.hungerDecayPerDay * share)
+
+    def boil(self):
+        s = self.s
+        if s.fireLitToday and "clayPot" in s.structures and s.count("water") > 0:
+            s.add("cleanWater", s.count("water"))
+            s.inv["water"] = 0
+
+    def drink(self):
+        s, b = self.s, self.b
+        while s.thirst <= b.drinkThreshold and s.count("water") + s.count("cleanWater") > 0:
+            clean = s.count("cleanWater") > 0
+            s.add("cleanWater" if clean else "water", -1)
+            s.thirst = min(100, s.thirst + b.drinkRestore)
+            if not clean:
+                ch = b.rawWaterSicknessChance * max(0, 1 - 0.08 * self.level("survival"))
+                if self.rng.chance(ch):
+                    s.health -= b.sicknessDamage
+                    s.fatigue = min(100, s.fatigue + b.sicknessFatigue)
 
     def end_day(self):
         s, b = self.s, self.b
@@ -295,18 +324,9 @@ class Engine:
         f -= b.shelterSleepRecovery if shelter else b.sleepRecovery
         if s.weather == "rain" and not shelter: f += b.rainSleepPenalty
         s.fatigue = clamp(f, 0, 100)
-        s.thirst = max(0, s.thirst - b.thirstDecayPerDay)
-        s.hunger = max(0, s.hunger - b.hungerDecayPerDay)
-        safe = s.fireLitToday and "clayPot" in s.structures
-        while s.thirst <= b.drinkThreshold and s.count("water") + s.count("cleanWater") > 0:
-            clean = s.count("cleanWater") > 0
-            s.add("cleanWater" if clean else "water", -1)
-            s.thirst = min(100, s.thirst + b.drinkRestore)
-            if not clean and not safe:
-                ch = b.rawWaterSicknessChance * max(0, 1 - 0.08 * self.level("survival"))
-                if self.rng.chance(ch):
-                    s.health -= b.sicknessDamage
-                    s.fatigue = min(100, s.fatigue + b.sicknessFatigue)
+        self.wear(max(0, b.hoursPerDay - s.hoursSpentToday))
+        self.boil()
+        self.drink()
         meal = b.cookedMealRestore if s.fireLitToday else b.mealRestore
         while s.hunger <= b.eatThreshold and s.count("food") > 0:
             s.add("food", -1)
@@ -333,6 +353,7 @@ class Engine:
             s.thirst = min(100, s.thirst + self.b.drinkRestore)
             if "clayPot" in s.structures: s.add("cleanWater", 3)
         s.fireLitToday = False
+        s.hoursSpentToday = 0
         s.actionsToday = {}
         lost = int(s.fatigue / b.fatiguePerLostHour)
         s.hoursLeft = max(2, b.hoursPerDay - lost)

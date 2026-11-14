@@ -16,145 +16,147 @@ enum Art {
 
     // MARK: Castaway
 
+    // Washed ashore with what was on their back: no hat, a torn shirt, ragged shorts, bare feet.
+
     private static let heroTop = [
+        "............",
         "...kkkkkk...",
-        "..keeeeeek..",
-        ".keeeeeeeek.",
-        "kEEEEEEEEEEk",
+        "..khhThhhk..",
+        ".khhhhhThhk.",
         ".khhsssshhk.",
         ".kskssssksk.",
         ".kspsssspsk.",
         "..kssssssk..",
-        ".kkrrrrrrkk.",
-        "ksrrrwwrrrsk",
-        "kskrrrrrrksk",
-        ".kkbbbbbbkk.",
+        ".kkRRRRRRkk.",
+        "ksRRRrrRRRsk",
+        "kskRRkRRRksk",
+        ".kkBBBBBBkk.",
     ]
     static let heroIdle = Bitmap.image(heroTop + [
-        "..kbbkkbbk..",
+        "..kBBkkBBk..",
         "..ksk..ksk..",
         "..kkk..kkk..",
     ])
     static let heroStepA = Bitmap.image(heroTop + [
-        "..kbbkkbbk..",
+        "..kBBkkBBk..",
         "..ksk..kkk..",
         "..kkk.......",
     ])
     static let heroStepB = Bitmap.image(heroTop + [
-        "..kbbkkbbk..",
+        "..kBBkkBBk..",
         "..kkk..ksk..",
         ".......kkk..",
     ])
     // Walking away from us: the back of the hat and hair, no face.
     private static let heroBackTop = [
+        "............",
         "...kkkkkk...",
-        "..keeeeeek..",
-        ".keeeeeeeek.",
-        "kEEEEEEEEEEk",
+        "..khhThhhk..",
+        ".khhhhhThhk.",
         ".khhhhhhhhk.",
         ".khhhhhhhhk.",
         ".kshhhhhhsk.",
         "..khhhhhhk..",
-        ".kkrrrrrrkk.",
-        "ksrrrrrrrrsk",
-        "kskrrRRrrksk",
-        ".kkbbbbbbkk.",
+        ".kkRRRRRRkk.",
+        "ksRRRRRRRRsk",
+        "kskRRkRRRksk",
+        ".kkBBBBBBkk.",
     ]
     static let heroBackIdle = Bitmap.image(heroBackTop + [
-        "..kbbkkbbk..",
+        "..kBBkkBBk..",
         "..ksk..ksk..",
         "..kkk..kkk..",
     ])
     static let heroBackStepA = Bitmap.image(heroBackTop + [
-        "..kbbkkbbk..",
+        "..kBBkkBBk..",
         "..ksk..kkk..",
         "..kkk.......",
     ])
     static let heroBackStepB = Bitmap.image(heroBackTop + [
-        "..kbbkkbbk..",
+        "..kBBkkBBk..",
         "..kkk..ksk..",
         ".......kkk..",
     ])
 
     // Seen from the side, facing right; flipped for left.
     private static let heroSideHead = [
+        "............",
         "...kkkkkk...",
-        "..keeeeeek..",
-        ".keeeeeeeek.",
-        ".kEEEEEEEEEk",
+        "..khhThhhk..",
+        ".khhhhhhhhk.",
         ".khhhhssssk.",
         ".khhhsssksk.",
         ".khhsssspsk.",
         "..khsssssk..",
     ]
     static let heroSideIdle = Bitmap.image(heroSideHead + [
-        "...krrrrk...",
-        "..krrrsrk...",
-        "..krrrsrk...",
-        "...kbbbbk...",
-        "...kbbbk....",
+        "...kRRRRk...",
+        "..kRRRsRk...",
+        "..kRRRsRk...",
+        "...kBBBBk...",
+        "...kBBBk....",
         "...kskk.....",
         "...kkkk.....",
     ])
     /// Legs apart, front arm swung forward.
     static let heroSideStepA = Bitmap.image(heroSideHead + [
-        "...krrrrk...",
-        "..krrrrrsk..",
-        "..krrrrrkk..",
-        "...kbbbbk...",
-        "..kbbkkbbk..",
+        "...kRRRRk...",
+        "..kRRRRRsk..",
+        "..kRRRRRkk..",
+        "...kBBBBk...",
+        "..kBBkkBBk..",
         ".ksk...ksk..",
         ".kkk...kkkk.",
     ])
     /// Legs passing, arm swung back.
     static let heroSideStepB = Bitmap.image(heroSideHead + [
-        "...krrrrk...",
-        "..ksrrrrk...",
-        "..kkrrrrk...",
-        "...kbbbbk...",
-        "...kbbbk....",
+        "...kRRRRk...",
+        "..ksRRRRk...",
+        "..kkRRRRk...",
+        "...kBBBBk...",
+        "...kBBBk....",
         "....ksk.....",
         "....kkkk....",
     ])
     // Working poses, side on.
     /// Arm drawn back, about to strike.
     static let heroArmUp = Bitmap.image(heroSideHead + [
-        "...krrrrks..",
-        "..krrrrrk...",
-        "..krrrrrk...",
-        "...kbbbbk...",
-        "...kbbbk....",
+        "...kRRRRks..",
+        "..kRRRRRk...",
+        "..kRRRRRk...",
+        "...kBBBBk...",
+        "...kBBBk....",
         "...kskk.....",
         "...kkkk.....",
     ])
     /// Arm brought down in front.
     static let heroArmDown = Bitmap.image(heroSideHead + [
-        "...krrrrk...",
-        "..krrrrrkk..",
-        "..krrrrrssk.",
-        "...kbbbbk...",
-        "...kbbbk....",
+        "...kRRRRk...",
+        "..kRRRRRkk..",
+        "..kRRRRRssk.",
+        "...kBBBBk...",
+        "...kBBBk....",
         "...kskk.....",
         "...kkkk.....",
     ])
     private static let heroLow = ["", "", "", ""] + heroSideHead
     /// Down on the heels, hands close.
     static let heroCrouch = Bitmap.image(heroLow + [
-        "..krrrrrk...",
-        "..krrrssk...",
-        ".kkbbbbkk...",
+        "..kRRRRRk...",
+        "..kRRRssk...",
+        ".kkBBBBkk...",
     ])
     /// Down on the heels, reaching for the ground.
     static let heroReach = Bitmap.image(heroLow + [
-        "..krrrrrk...",
-        "..krrrrrsk..",
-        ".kkbbbbkksk.",
+        "..kRRRRRk...",
+        "..kRRRRRsk..",
+        ".kkBBBBkksk.",
     ])
     private static let heroBackHat = [
+        "............",
         "...kkkkkk...",
-        "..keeeeeek..",
-        ".keeeeeeeek.",
-        "kEEEEEEEEEEk",
+        "..khhThhhk..",
+        ".khhhhhThhk.",
     ]
     /// Shinning up a trunk, seen from behind: one hand high, then the other.
     static let heroClimbA = Bitmap.image(heroBackHat + [
@@ -162,11 +164,11 @@ enum Art {
         "kkhhhhhhhhks",
         ".kshhhhhhskk",
         "..khhhhhhk..",
-        ".kkrrrrrrkk.",
-        ".krrrrrrrrk.",
-        ".kkrrRRrrkk.",
-        ".kkbbbbbbkk.",
-        "..kbbkkbbk..",
+        ".kkRRRRRRkk.",
+        ".kRRRRRRRRk.",
+        ".kkRRRRRRkk.",
+        ".kkBBBBBBkk.",
+        "..kBBkkBBk..",
         "..ksk..kkk..",
         "..kkk.......",
     ])
@@ -175,11 +177,11 @@ enum Art {
         "skhhhhhhhhkk",
         "kkshhhhhhsk.",
         "..khhhhhhk..",
-        ".kkrrrrrrkk.",
-        ".krrrrrrrrk.",
-        ".kkrrRRrrkk.",
-        ".kkbbbbbbkk.",
-        "..kbbkkbbk..",
+        ".kkRRRRRRkk.",
+        ".kRRRRRRRRk.",
+        ".kkRRRRRRkk.",
+        ".kkBBBBBBkk.",
+        "..kBBkkBBk..",
         "..kkk..ksk..",
         ".......kkk..",
     ])
@@ -431,12 +433,13 @@ enum Art {
         "CccccccCCcccvC",
         ".CCCCCC..CCCC.",
     ])
+    /// Nobody washes ashore with bedding: a bed is fallen palm fronds laid on the sand.
     static let bedroll = Bitmap.image([
-        ".kkkkkkkkkkkk.",
-        "kNNkrrrrrrrrRk",
-        "kNNkrwrrrwrrRk",
-        "kNNkrrrrrrrrRk",
-        ".kkkkkkkkkkkk.",
+        ".dd..dddd..dd.",
+        "dGgddGggGddgGd",
+        "dgGgGgGGgGgGgd",
+        "dGgGgGggGgGgGd",
+        ".ddGddGGddGdd.",
     ])
     static let cairn = Bitmap.image([
         "....CC....",

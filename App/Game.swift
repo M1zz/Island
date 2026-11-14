@@ -309,6 +309,18 @@ final class Game: ObservableObject {
         return .daylight
     }
 
+    /// What the castaway drank since `before`, and whether it sat badly.
+    private func sips(since before: GameState) -> [[CGImage]] {
+        var notes: [[CGImage]] = []
+        for item in [Item.cleanWater, .water] {
+            let drunk = before.count(item) - engine.state.count(item)
+            // Boiling moves raw water to clean; that is not drinking.
+            if drunk > 0, engine.state.needs.thirst > before.needs.thirst { notes.append([Art.icon(item), PixelFont.image("-\(drunk)")]) }
+        }
+        if engine.state.needs.health < before.needs.health, before.water > engine.state.water { notes.append([Art.murkyDrop, Art.heart, Art.cross]) }
+        return notes
+    }
+
     // MARK: Nudges
 
     /// The nearest thing of a kind that is still there to gather, within a long walk.
@@ -398,8 +410,11 @@ final class Game: ObservableObject {
             idle += delta / secondsPerHour
             if idle >= 1 {
                 idle = 0
+                let before = engine.state
                 engine.perform(.rest)
+                scene.popup(sips(since: before))
                 refresh()
+                if engine.state.isOver { finish() }
             }
             clock = dayEnd - Double(engine.state.hoursLeft) + idle
 
@@ -468,6 +483,7 @@ final class Game: ObservableObject {
         }
         if engine.state.fireLitToday, !before.state.fireLitToday { notes.append([Art.flame, Art.check]) }
         if !result.success { notes.append([action.icon, Art.cross]) }
+        notes += sips(since: before.state)
         for skill in Skill.allCases where engine.level(skill) > before.level(skill) {
             notes.append([Art.icon(skill), Art.up, Art.number(engine.level(skill))])
         }

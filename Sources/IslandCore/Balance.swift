@@ -27,6 +27,8 @@ public struct Balance: Codable, Sendable {
     public var shelterSleepRecovery = 65.0
     public var rainSleepPenalty = 20.0
     public var restRecoveryPerHour = 4.0
+    /// Being up and about wears you down a little even when you do nothing. Only sleep restores.
+    public var awakeFatiguePerHour = 1.0
     /// Every this many fatigue points costs one action hour the next day.
     public var fatiguePerLostHour = 20.0
 

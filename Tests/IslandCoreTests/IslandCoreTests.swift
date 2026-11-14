@@ -91,15 +91,24 @@ final class IslandCoreTests: XCTestCase {
         XCTAssertLessThan(rate, 0.80, "Too easy: planner rescue rate \(rate)")
     }
 
-    func testRestingBeforeSleepMatchesSleepingEarly() {
-        var rested = GameEngine(seed: 7)
-        var direct = GameEngine(seed: 7)
-        rested.perform(.gather(.wood, .beach))
-        direct.perform(.gather(.wood, .beach))
-        while rested.state.hoursLeft > 0 { rested.perform(.rest) }
-        rested.perform(.sleep)
-        direct.perform(.sleep)
-        XCTAssertEqual(rested.state.needs, direct.state.needs)
-        XCTAssertEqual(rested.state.hoursLeft, direct.state.hoursLeft)
+    func testNeedsFallThroughTheDay() {
+        var engine = GameEngine(seed: 7)
+        let morning = engine.state.needs
+        engine.perform(.rest)
+        XCTAssertLessThan(engine.state.needs.thirst, morning.thirst)
+        XCTAssertLessThan(engine.state.needs.hunger, morning.hunger)
+        XCTAssertGreaterThan(engine.state.needs.fatigue, morning.fatigue)
+    }
+
+    func testStayingUpCostsTheSameFoodAndWaterButNoRest() {
+        var up = GameEngine(seed: 7)
+        var early = GameEngine(seed: 7)
+        while up.state.hoursLeft > 0 { up.perform(.rest) }
+        up.perform(.sleep)
+        early.perform(.sleep)
+        // A day is a day for thirst and hunger, however it was spent.
+        XCTAssertEqual(up.state.needs.thirst, early.state.needs.thirst, accuracy: 0.001)
+        XCTAssertEqual(up.state.needs.hunger, early.state.needs.hunger, accuracy: 0.001)
+        XCTAssertGreaterThanOrEqual(up.state.needs.fatigue, early.state.needs.fatigue)
     }
 }

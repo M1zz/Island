@@ -16,6 +16,8 @@ public struct GameState: Codable, Sendable {
     public var discovered: Set<Region> = [.beach]
     public var structures: Set<Structure> = []
     public var fireLitToday = false
+    /// Waking hours used so far today; thirst and hunger have already been charged for these.
+    public var hoursSpentToday = 0
     /// How many times each action key was used today (for the repeat penalty).
     public var actionsToday: [String: Int] = [:]
     /// Action keys ever performed this run (for the novelty bonus).
