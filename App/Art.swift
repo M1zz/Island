@@ -45,6 +45,46 @@ enum Art {
         "..kkk..ksk..",
         ".......kkk..",
     ])
+    // Seen from the side, facing right; flipped for left.
+    private static let heroSideHead = [
+        "...kkkkkk...",
+        "..keeeeeek..",
+        ".keeeeeeeek.",
+        ".kEEEEEEEEEk",
+        ".khhhhssssk.",
+        ".khhhsssksk.",
+        ".khhsssspsk.",
+        "..khsssssk..",
+    ]
+    static let heroSideIdle = Bitmap.image(heroSideHead + [
+        "...krrrrk...",
+        "..krrrsrk...",
+        "..krrrsrk...",
+        "...kbbbbk...",
+        "...kbbbk....",
+        "...kskk.....",
+        "...kkkk.....",
+    ])
+    /// Legs apart, front arm swung forward.
+    static let heroSideStepA = Bitmap.image(heroSideHead + [
+        "...krrrrk...",
+        "..krrrrrsk..",
+        "..krrrrrkk..",
+        "...kbbbbk...",
+        "..kbbkkbbk..",
+        ".ksk...ksk..",
+        ".kkk...kkkk.",
+    ])
+    /// Legs passing, arm swung back.
+    static let heroSideStepB = Bitmap.image(heroSideHead + [
+        "...krrrrk...",
+        "..ksrrrrk...",
+        "..kkrrrrk...",
+        "...kbbbbk...",
+        "...kbbbk....",
+        "....ksk.....",
+        "....kkkk....",
+    ])
     static let heroAsleep = Bitmap.image([
         "....kkkkkkkkkkk.",
         ".kkkeeekrrrrrbbk",
