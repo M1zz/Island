@@ -13,12 +13,14 @@ struct GameView: View {
     var body: some View {
         SpriteView(scene: game.scene)
             .frame(width: CGFloat(IslandMap.viewWidth) * px, height: CGFloat(IslandMap.viewHeight) * px)
+            // The map gets the whole window to itself.
             .overlay(alignment: .topLeading) {
                 VStack(alignment: .leading, spacing: 3 * px) {
                     needs
                     skills
                 }
                 .padding(4 * px)
+                .opacity(game.mapOpen ? 0 : 1)
             }
             .overlay(alignment: .topTrailing) {
                 VStack(alignment: .trailing, spacing: 3 * px) {
@@ -26,9 +28,10 @@ struct GameView: View {
                     rescue
                 }
                 .padding(4 * px)
+                .opacity(game.mapOpen ? 0 : 1)
             }
             .overlay(alignment: .bottomLeading) { whereabouts.padding(4 * px) }
-            .overlay(alignment: .bottom) { bag.padding(4 * px) }
+            .overlay(alignment: .bottom) { bag.padding(4 * px).opacity(game.mapOpen ? 0 : 1) }
             .overlay(alignment: .bottomTrailing) { controls.padding(4 * px) }
             .overlay { centre }
     }
@@ -144,6 +147,7 @@ struct GameView: View {
 
     private var whereabouts: some View {
         HStack(spacing: 3 * px) {
+            PixelText(game.cell)
             PixelImage(image: Art.icon(game.here))
             ForEach(Item.allCases.filter { game.here.yields.base(for: $0) > 0 }, id: \.self) { item in
                 PixelImage(image: Art.icon(item))
@@ -173,6 +177,7 @@ struct GameView: View {
             PixelImage(image: Art.spaceKey)
             keyButton("C", Art.hammer, lit: game.crafting, action: game.toggleCrafting)
             keyButton("M", Art.mapIcon, lit: game.mapOpen, action: game.toggleMap)
+                .opacity(state.has(.map) ? 1 : 0.45)
         }
         .padding(4 * px)
         .pixelPanel()

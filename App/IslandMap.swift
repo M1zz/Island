@@ -13,6 +13,18 @@ enum IslandMap {
     static let scale = 60
     static let width = 352 * scale
     static let height = 212 * scale
+    /// The island is ruled into lettered columns and numbered rows, like a chart: "C4".
+    static let grid = (columns: 12, rows: 8)
+
+    static func cell(x: Int, y: Int) -> (column: Int, row: Int) {
+        (min(max(x * grid.columns / width, 0), grid.columns - 1), min(max(y * grid.rows / height, 0), grid.rows - 1))
+    }
+
+    static func cellName(x: Int, y: Int) -> String {
+        let cell = cell(x: x, y: y)
+        return "\(Character(UnicodeScalar(UInt8(65 + cell.column))))\(cell.row + 1)"
+    }
+
     /// The ground is drawn in square pieces this wide, only around the camera.
     static let chunk = 512
 

@@ -962,12 +962,18 @@ enum Art {
         ".k..kkkk..k.",
     ])
     static let mapIcon = Bitmap.image([
-        "NN.NN.N",
-        "NnNNnNN",
-        "NNgNNrN",
-        "NggNnNN",
-        "NNNNNnN",
-        "N.NN.NN",
+        "............",
+        ".kkk..kkkk..",
+        "kNNNkkNNNNkk",
+        "kNnNNNNrNNNk",
+        "kNNgNNNNNnNk",
+        "kNggNNnNNNNk",
+        "kNNgNNNNgNNk",
+        "kNNNNrNNggNk",
+        "kNnNNNNNNNNk",
+        "kNNNkkNNNNkk",
+        ".kkk..kkkk..",
+        "............",
     ])
     static let arrows = Bitmap.image([
         "....k....",
@@ -1139,6 +1145,7 @@ enum Art {
         case .stoneAxe: axe
         case .rope: rope
         case .torch: torch
+        case .map: mapIcon
         case .dryingRack: dryingRack
         case .shelter: shelter
         case .clayPot: clayPot

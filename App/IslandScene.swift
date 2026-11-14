@@ -42,7 +42,10 @@ final class IslandScene: SKScene {
     private let mapLayer = SKNode()
     private var mapOpen = false
     /// How far the camera pulls back to fit the whole island.
-    private let zoom = CGFloat(IslandMap.width) / CGFloat(IslandMap.viewWidth)
+    private let zoom = max(CGFloat(IslandMap.width) / CGFloat(IslandMap.viewWidth),
+                           CGFloat(IslandMap.height) / CGFloat(IslandMap.viewHeight))
+    /// Marks the square of the chart you are in. The map does not know more than that.
+    private let hereMark = SKSpriteNode(color: NSColor(red: 1, green: 0.84, blue: 0.2, alpha: 0.45), size: .zero)
     private var built: [Structure: SKSpriteNode] = [:]
 
     private var fireLit = false
@@ -196,6 +199,37 @@ final class IslandScene: SKScene {
             mapLayer.addChild(unknown)
         }
 
+        // The chart's grid: lines, letters across the top, numbers down the side.
+        let grid = IslandMap.grid
+        let cell = CGSize(width: mapWidth / CGFloat(grid.columns), height: mapHeight / CGFloat(grid.rows))
+        let ink = NSColor(red: 0.23, green: 0.14, blue: 0.09, alpha: 0.45)
+        for column in 0...grid.columns {
+            let line = SKSpriteNode(color: ink, size: CGSize(width: zoom, height: mapHeight))
+            line.position = CGPoint(x: CGFloat(column) * cell.width, y: mapHeight / 2)
+            mapLayer.addChild(line)
+        }
+        for row in 0...grid.rows {
+            let line = SKSpriteNode(color: ink, size: CGSize(width: mapWidth, height: zoom))
+            line.position = CGPoint(x: mapWidth / 2, y: CGFloat(row) * cell.height)
+            mapLayer.addChild(line)
+        }
+        for column in 0..<grid.columns {
+            let letter = SKSpriteNode(texture: texture(PixelFont.image(String(Character(UnicodeScalar(UInt8(65 + column)))), color: 0xffffff, outline: 0x3b2416)))
+            letter.setScale(zoom)
+            letter.position = CGPoint(x: (CGFloat(column) + 0.5) * cell.width, y: mapHeight - 8 * zoom)
+            mapLayer.addChild(letter)
+        }
+        for row in 0..<grid.rows {
+            let number = SKSpriteNode(texture: texture(PixelFont.image("\(row + 1)", color: 0xffffff, outline: 0x3b2416)))
+            number.setScale(zoom)
+            number.position = CGPoint(x: 6 * zoom, y: mapHeight - (CGFloat(row) + 0.5) * cell.height)
+            mapLayer.addChild(number)
+        }
+        hereMark.size = cell
+        hereMark.zPosition = -1
+        hereMark.run(.repeatForever(.sequence([.fadeAlpha(to: 0.35, duration: 0.5), .fadeAlpha(to: 1, duration: 0.5)])))
+        mapLayer.addChild(hereMark)
+
         // Light
         skyTint.size = CGSize(width: size.width + 4, height: size.height + 4)
         skyTint.zPosition = 27000
@@ -276,6 +310,7 @@ final class IslandScene: SKScene {
         hero.removeAllActions()
         hero.zRotation = 0
         hero.xScale = 1
+        hero.alpha = 1
         facing = .front
         hero.texture = idleTexture
         hero.size = idleTexture.size()
@@ -891,10 +926,13 @@ final class IslandScene: SKScene {
         eye.run(move, withKey: "zoom")
         mapLayer.run(.fadeAlpha(to: open ? 1 : 0, duration: seconds))
         overview.run(.fadeAlpha(to: open ? 1 : 0, duration: seconds))
-        // So you can find yourself from up there.
-        hero.run(.scale(to: open ? zoom * 1.2 : 1, duration: seconds), withKey: "grow")
-        hero.zPosition = open ? 26950 : mapHeight - hero.position.y
+        // The chart shows which square you are in, not the spot: nobody has a satellite here.
+        let spot = heroSpot, here = IslandMap.cell(x: spot.x, y: spot.y)
+        hereMark.position = CGPoint(x: (CGFloat(here.column) + 0.5) * hereMark.size.width,
+                                    y: mapHeight - (CGFloat(here.row) + 0.5) * hereMark.size.height)
+        hero.run(.fadeAlpha(to: open ? 0 : 1, duration: seconds / 2), withKey: "grow")
         prompt.alpha = open ? 0 : 1
+        if open { stopThinking() }
     }
 
     /// An x that keeps something `width` wide fully on screen.

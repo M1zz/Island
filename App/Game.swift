@@ -35,6 +35,8 @@ final class Game: ObservableObject {
     @Published private(set) var engine: GameEngine
     @Published private(set) var journal: Journal
     @Published private(set) var here: Region = .beach
+    /// Which square of the chart the castaway stands in, like "C4".
+    @Published private(set) var cell = ""
     @Published private(set) var prompt: Prompt?
     @Published private(set) var working: Action?
     @Published private(set) var sleeping = false
@@ -169,6 +171,12 @@ final class Game: ObservableObject {
 
     func toggleMap() {
         guard !engine.state.isOver else { return }
+        // No map until you have drawn one.
+        guard engine.state.has(.map) else {
+            Sound.shared.play(.blocked)
+            scene.think([Art.mapIcon, Art.cross, Art.key("C")], toward: nil)
+            return
+        }
         crafting = false
         mapOpen.toggle()
         Sound.shared.play(.tick)
@@ -239,6 +247,8 @@ final class Game: ObservableObject {
         let state = engine.state
         func distance(_ x: Int, _ y: Int) -> Double { hypot(Double(spot.x - x), Double(spot.y - y)) }
         if let region = IslandMap.region(x: spot.x, y: spot.y), region != here { here = region }
+        let name = IslandMap.cellName(x: spot.x, y: spot.y)
+        if name != cell { cell = name }
 
         var found: Action?
         nearProp = nil
@@ -356,7 +366,7 @@ final class Game: ObservableObject {
         // The way off the island, one step at a time.
         enum Step { case find(Region), make(Recipe) }
         let steps: [Step] = [
-            .find(.palmGrove), .find(.stream), .make(.stoneAxe), .make(.dryingRack), .find(.jungle), .make(.rope),
+            .make(.map), .find(.palmGrove), .find(.stream), .make(.stoneAxe), .make(.dryingRack), .find(.jungle), .make(.rope),
             .make(.clayPot), .find(.ridge), .make(.torch), .find(.summit), .make(.signalFrame),
         ]
         for step in steps {

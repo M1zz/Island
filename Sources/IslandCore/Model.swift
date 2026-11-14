@@ -33,11 +33,13 @@ public enum Item: String, CaseIterable, Codable, CodingKeyRepresentable, Sendabl
 public enum Structure: String, CaseIterable, Codable, Sendable {
     case dryingRack, shelter, clayPot, signalFrame
     case stoneAxe, rope, torch
+    /// Charcoal on bark: without it you only know where you are standing.
+    case map
 
-    /// Carried, not built: a tool opens the way into a region.
+    /// Carried, not built.
     public var isTool: Bool {
         switch self {
-        case .stoneAxe, .rope, .torch: true
+        case .stoneAxe, .rope, .torch, .map: true
         case .dryingRack, .shelter, .clayPot, .signalFrame: false
         }
     }
@@ -47,6 +49,7 @@ public enum Structure: String, CaseIterable, Codable, Sendable {
         case .stoneAxe: "Stone axe"
         case .rope: "Rope"
         case .torch: "Torch"
+        case .map: "Map"
         case .dryingRack: "Drying rack"
         case .shelter: "Shelter"
         case .clayPot: "Clay pot"
@@ -158,7 +161,7 @@ public enum Region: String, CaseIterable, Codable, Sendable {
 
 public enum Recipe: String, CaseIterable, Codable, Sendable {
     case dryingRack, shelter, clayPot, signalFrame, dryWood
-    case stoneAxe, rope, torch
+    case stoneAxe, rope, torch, map
 
     public enum Output: Sendable {
         case structure(Structure)
@@ -201,6 +204,9 @@ public enum Recipe: String, CaseIterable, Codable, Sendable {
         case .torch:
             Spec(requiredLevel: 1, cost: [(.dryWood, 2), (.fiber, 2)], hours: 2, baseXP: 12,
                  output: .structure(.torch), requiresStructure: nil, requiresRegion: nil)
+        case .map:
+            Spec(requiredLevel: 0, cost: [(.wood, 2)], hours: 1, baseXP: 15,
+                 output: .structure(.map), requiresStructure: nil, requiresRegion: nil)
         }
     }
 
@@ -214,6 +220,7 @@ public enum Recipe: String, CaseIterable, Codable, Sendable {
         case .stoneAxe: "Stone axe"
         case .rope: "Rope"
         case .torch: "Torch"
+        case .map: "Map"
         }
     }
 }

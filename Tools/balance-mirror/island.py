@@ -96,8 +96,9 @@ RECIPES = {
     "stoneAxe": (0, [("wood", 2), ("fiber", 2), ("stone", 1)], 2, 12, ("structure", "stoneAxe"), None, None),
     "rope": (1, [("fiber", 6)], 2, 12, ("structure", "rope"), None, None),
     "torch": (1, [("dryWood", 2), ("fiber", 2)], 2, 12, ("structure", "torch"), None, None),
+    "map": (0, [("wood", 2)], 1, 15, ("structure", "map"), None, None),
 }
-RECIPE_ORDER = ["dryingRack", "shelter", "clayPot", "signalFrame", "dryWood", "stoneAxe", "rope", "torch"]
+RECIPE_ORDER = ["dryingRack", "shelter", "clayPot", "signalFrame", "dryWood", "stoneAxe", "rope", "torch", "map"]
 # The tool you must carry to get into a region at all.
 TOOL = dict(jungle="stoneAxe", ridge="rope", summit="torch")
 
