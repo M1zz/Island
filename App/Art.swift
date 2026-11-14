@@ -986,9 +986,25 @@ enum Art {
         PixelFont.image("\(value)", color: color)
     }
 
+    /// Foraging: a woven basket with something in it.
+    static let basket = Bitmap.image([
+        "....kkkk....",
+        "..kkk..kkk..",
+        ".kk......kk.",
+        ".k.krk.krk.k",
+        "kkkkkkkkkkkk",
+        "knEnEnEnEnEk",
+        "kEnEnEnEnEnk",
+        ".knEnEnEnEk.",
+        ".kEnEnEnEnk.",
+        "..knEnEnEk..",
+        "..kkkkkkkk..",
+        "............",
+    ])
+
     static func icon(_ skill: Skill) -> CGImage {
         switch skill {
-        case .foraging: leaf
+        case .foraging: basket
         case .crafting: hammer
         case .exploration: compass
         case .survival: flame
