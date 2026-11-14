@@ -10,7 +10,8 @@ public struct GameState: Codable, Sendable {
     public var hoursLeft: Int
     public var weather: Weather = .clear
     public var needs = Needs()
-    public var inventory: [Item: Int] = [.water: 3, .food: 3]
+    /// What washed ashore with you: a bottle of clean water and a little food.
+    public var inventory: [Item: Int] = [.cleanWater: 3, .food: 3]
     public var skills = SkillSet()
     public var discovered: Set<Region> = [.beach]
     public var structures: Set<Structure> = []
@@ -31,6 +32,9 @@ public struct GameState: Codable, Sendable {
     public func count(_ item: Item) -> Int {
         inventory[item, default: 0]
     }
+
+    /// Everything drinkable, clean or not.
+    public var water: Int { count(.water) + count(.cleanWater) }
 
     public func has(_ structure: Structure) -> Bool {
         structures.contains(structure)

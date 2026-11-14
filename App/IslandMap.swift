@@ -17,12 +17,13 @@ enum IslandMap {
     static let chunk = 512
 
     enum Kind {
-        case palm, tree, snag, bush, rock, fern, shell
+        case palm, tree, snag, bush, rock, fern, shell, driftwood
 
-        /// What you get by working on it.
+        /// What you get by working on it. A palm is climbed for coconuts, not cut down.
         var item: Item {
             switch self {
-            case .palm, .tree, .snag: .wood
+            case .palm: .cleanWater
+            case .tree, .snag, .driftwood: .wood
             case .bush, .shell: .food
             case .fern: .fiber
             case .rock: .stone
@@ -271,8 +272,8 @@ enum IslandMap {
         guard let region = region(x: x, y: y) else { return nil }
         let kind: Kind?
         switch region {
-        case .beach: kind = chance < 0.012 ? .shell : chance < 0.03 ? .rock : nil
-        case .palmGrove: kind = chance < 0.03 ? .bush : chance < 0.08 ? .fern : chance < 0.09 ? .rock : nil
+        case .beach: kind = chance < 0.012 ? .shell : chance < 0.03 ? .rock : chance < 0.045 ? .driftwood : nil
+        case .palmGrove: kind = chance < 0.03 ? .bush : chance < 0.08 ? .fern : chance < 0.09 ? .rock : chance < 0.11 ? .driftwood : nil
         case .stream: kind = chance < 0.03 ? .bush : chance < 0.06 ? .fern : chance < 0.11 ? .rock : nil
         case .jungle: kind = chance < 0.05 ? .bush : chance < 0.11 ? .fern : nil
         case .ridge: kind = chance < 0.10 ? .rock : nil

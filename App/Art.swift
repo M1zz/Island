@@ -319,6 +319,14 @@ enum Art {
         "..ggg..",
         "..GgG..",
     ])
+    /// Wood the sea threw back, bleached grey.
+    static let driftwood = Bitmap.image([
+        "..........CC..",
+        ".CCCCCCCCCvC..",
+        "CvvvvcvvvvccCC",
+        "CccccccCCcccvC",
+        ".CCCCCC..CCCC.",
+    ])
     static let bedroll = Bitmap.image([
         ".kkkkkkkkkkkk.",
         "kNNkrrrrrrrrRk",
@@ -746,7 +754,7 @@ enum Art {
         switch region {
         case .beach: waves
         case .palmGrove: palmIcon
-        case .stream: drop
+        case .stream: murkyDrop
         case .jungle: treeIcon
         case .ridge: stone
         case .summit: peak
@@ -809,9 +817,28 @@ enum Art {
         }
     }
 
+    /// Stream water: not safe until boiled.
+    static let murkyDrop = Bitmap.image([
+        "...E...",
+        "..EEE..",
+        ".EeEEE.",
+        ".EeETE.",
+        ".EETEE.",
+        "..EEE..",
+    ])
+    static let coconut = Bitmap.image([
+        "..TTT..",
+        ".ThhhT.",
+        "ThtthhT",
+        "ThhhhhT",
+        ".ThkhT.",
+        "..TTT..",
+    ])
+
     static func icon(_ item: Item) -> CGImage {
         switch item {
-        case .water: drop
+        case .water: murkyDrop
+        case .cleanWater: drop
         case .food: fruit
         case .wood: log
         case .dryWood: dryLog

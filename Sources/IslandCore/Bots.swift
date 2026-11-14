@@ -24,9 +24,10 @@ public struct ForagerBot: Bot {
     public mutating func choose(in engine: GameEngine, rng: inout SplitMix64) -> Action {
         let state = engine.state
         var plan: [Action] = []
-        if state.count(.water) < 4 { plan.append(.fetchWater) }
+        if state.water < 4 { plan.append(.fetchWater) }
         plan.append(.explore(.stream))
         plan.append(.explore(.palmGrove))
+        if state.water < 2 { plan += [.gather(.cleanWater, .palmGrove), .gather(.cleanWater, .beach)] }
         if state.count(.food) < 6 {
             plan += [.gather(.food, .palmGrove), .fish, .gather(.food, .beach)]
         }
@@ -49,7 +50,7 @@ public struct PlannerBot: Bot {
         case .fiber: [.palmGrove, .jungle, .stream]
         case .stone: [.ridge, .stream]
         case .food: [.palmGrove, .jungle, .beach]
-        case .water, .dryWood: []
+        case .water, .cleanWater, .dryWood: []
         }
     }
 
@@ -59,8 +60,10 @@ public struct PlannerBot: Bot {
         var plan: [Action] = [.lightSignal]
 
         // 1. Stay alive
-        if state.count(.water) < 4 { plan.append(.fetchWater) }
+        if state.water < 4 { plan.append(.fetchWater) }
         if !state.discovered.contains(.stream) { plan.append(.explore(.stream)) }
+        // Nothing left to drink and no stream yet: coconuts.
+        if state.water < 2 { plan += [.gather(.cleanWater, .palmGrove), .gather(.cleanWater, .beach)] }
         if state.count(.food) < 4 {
             plan += Self.gatherSpots(for: .food).map { Action.gather(.food, $0) } + [Action.fish]
         }

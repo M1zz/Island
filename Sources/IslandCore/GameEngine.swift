@@ -85,7 +85,7 @@ public struct GameEngine: Sendable {
     public static let allActions: [Action] = {
         var list: [Action] = []
         for region in Region.allCases {
-            for item in [Item.food, .wood, .fiber, .stone] where region.yields.base(for: item) > 0 {
+            for item in [Item.cleanWater, .food, .wood, .fiber, .stone] where region.yields.base(for: item) > 0 {
                 list.append(.gather(item, region))
             }
         }
@@ -151,7 +151,13 @@ public struct GameEngine: Sendable {
             let amount = rollYield(base: region.yields.base(for: item), skill: .foraging)
             state.inventory[item, default: 0] += amount
             success = amount > 0
-            messages.append("Gathered \(amount) \(item.displayName.lowercased()) at the \(region.displayName.lowercased()).")
+            if item == .cleanWater, rng.chance(balance.palmFallChance * max(0.25, 1 - 0.15 * Double(level(.foraging)))) {
+                state.needs.health -= balance.injuryDamage
+                messages.append("You slipped coming down the palm.")
+            }
+            messages.append(item == .cleanWater
+                ? "Opened coconuts: +\(amount) clean water."
+                : "Gathered \(amount) \(item.displayName.lowercased()) at the \(region.displayName.lowercased()).")
             messages += gainXP(10, .foraging, difficulty: region.difficulty, failed: !success,
                                key: "gather.\(item.rawValue).\(region.rawValue)")
 
@@ -170,7 +176,7 @@ public struct GameEngine: Sendable {
         case .fetchWater:
             let amount = 3 + level(.survival) / 3
             state.inventory[.water, default: 0] += amount
-            messages.append("Fetched \(amount) water from the stream.")
+            messages.append("Fetched \(amount) raw water from the stream.")
             messages += gainXP(4, .survival, difficulty: 0, failed: false, key: "fetchWater")
 
         case let .explore(region):
@@ -292,11 +298,13 @@ public struct GameEngine: Sendable {
         state.needs.hunger = max(0, state.needs.hunger - balance.hungerDecayPerDay)
 
         // Drink
-        let safeWater = state.fireLitToday && state.has(.clayPot)
-        while state.needs.thirst <= balance.drinkThreshold && state.count(.water) > 0 {
-            state.inventory[.water, default: 0] -= 1
+        // Clean water first. Stream water is only safe boiled: a fire and a pot to boil it in.
+        let boiled = state.fireLitToday && state.has(.clayPot)
+        while state.needs.thirst <= balance.drinkThreshold && state.water > 0 {
+            let clean = state.count(.cleanWater) > 0
+            state.inventory[clean ? Item.cleanWater : Item.water, default: 0] -= 1
             state.needs.thirst = min(100, state.needs.thirst + balance.drinkRestore)
-            if !safeWater {
+            if !clean && !boiled {
                 let chance = balance.rawWaterSicknessChance * max(0, 1 - 0.08 * Double(level(.survival)))
                 if rng.chance(chance) {
                     state.needs.health -= balance.sicknessDamage
@@ -352,8 +360,11 @@ public struct GameEngine: Sendable {
 
     private mutating func startDay() {
         state.weather = rng.chance(balance.rainChance) ? .rain : .clear
-        if state.weather == .rain && state.has(.clayPot) {
-            state.inventory[.water, default: 0] += 2
+        if state.weather == .rain {
+            // Rain is clean water. With nothing to hold it you can only drink your fill
+            // while it falls; a pot keeps some for later.
+            state.needs.thirst = min(100, state.needs.thirst + balance.drinkRestore)
+            if state.has(.clayPot) { state.inventory[.cleanWater, default: 0] += 3 }
         }
         state.fireLitToday = false
         state.actionsToday = [:]

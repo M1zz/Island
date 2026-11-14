@@ -54,6 +54,7 @@ class Balance:
     fatiguePerLostHour: float = 20.0
     rainChance: float = 0.25
     rawWaterSicknessChance: float = 0.12
+    palmFallChance: float = 0.08
     sicknessDamage: float = 15.0
     sicknessFatigue: float = 20.0
     injuryDamage: float = 15.0
@@ -79,8 +80,8 @@ DIFF = dict(beach=0, palmGrove=0, stream=1, jungle=1, ridge=2, summit=3)
 TRAVEL = dict(beach=0, palmGrove=0, stream=1, jungle=1, ridge=2, summit=3)
 NEIGH = dict(beach=["palmGrove", "stream"], palmGrove=["jungle"], stream=["jungle"],
              jungle=["ridge"], ridge=["summit"], summit=[])
-YIELD = dict(beach=dict(food=1.5, wood=1.5, fiber=0, stone=0),
-             palmGrove=dict(food=2.5, wood=2, fiber=3, stone=0),
+YIELD = dict(beach=dict(food=1.5, wood=1.5, fiber=0, stone=0, cleanWater=0.6),
+             palmGrove=dict(food=2.5, wood=2, fiber=3, stone=0, cleanWater=1),
              stream=dict(food=1.5, wood=1, fiber=1, stone=1),
              jungle=dict(food=2.5, wood=4, fiber=2, stone=0),
              ridge=dict(food=0, wood=1, fiber=0, stone=3),
@@ -102,8 +103,8 @@ TOOL = dict(jungle="stoneAxe", ridge="rope", summit="torch")
 
 ALL_ACTIONS = []
 for r in REGIONS:
-    for it in ["food", "wood", "fiber", "stone"]:
-        if YIELD[r][it] > 0:
+    for it in ["cleanWater", "food", "wood", "fiber", "stone"]:
+        if YIELD[r].get(it, 0) > 0:
             ALL_ACTIONS.append(("gather", it, r))
 ALL_ACTIONS += [("fish",), ("fetchWater",)]
 ALL_ACTIONS += [("explore", r) for r in REGIONS if r != "beach"]
@@ -121,7 +122,7 @@ class State:
         self.hoursLeft = b.hoursPerDay
         self.weather = "clear"
         self.thirst, self.hunger, self.fatigue, self.health = 100.0, 100.0, 0.0, 100.0
-        self.inv = dict(water=3, food=3)
+        self.inv = dict(cleanWater=3, food=3)
         self.xp = {}
         self.discovered = {"beach"}
         self.structures = set()
@@ -236,6 +237,8 @@ class Engine:
             n = self.roll_yield(YIELD[r][it], "foraging")
             s.add(it, n)
             ok = n > 0
+            if it == "cleanWater" and self.rng.chance(b.palmFallChance * max(0.25, 1 - 0.15 * self.level("foraging"))):
+                s.health -= b.injuryDamage
             self.gain(10, "foraging", DIFF[r], not ok, f"gather.{it}.{r}")
         elif k == "fish":
             lv = self.level("foraging")
@@ -295,10 +298,11 @@ class Engine:
         s.thirst = max(0, s.thirst - b.thirstDecayPerDay)
         s.hunger = max(0, s.hunger - b.hungerDecayPerDay)
         safe = s.fireLitToday and "clayPot" in s.structures
-        while s.thirst <= b.drinkThreshold and s.count("water") > 0:
-            s.add("water", -1)
+        while s.thirst <= b.drinkThreshold and s.count("water") + s.count("cleanWater") > 0:
+            clean = s.count("cleanWater") > 0
+            s.add("cleanWater" if clean else "water", -1)
             s.thirst = min(100, s.thirst + b.drinkRestore)
-            if not safe:
+            if not clean and not safe:
                 ch = b.rawWaterSicknessChance * max(0, 1 - 0.08 * self.level("survival"))
                 if self.rng.chance(ch):
                     s.health -= b.sicknessDamage
@@ -325,7 +329,9 @@ class Engine:
     def start_day(self):
         s, b = self.s, self.b
         s.weather = "rain" if self.rng.chance(b.rainChance) else "clear"
-        if s.weather == "rain" and "clayPot" in s.structures: s.add("water", 2)
+        if s.weather == "rain":
+            s.thirst = min(100, s.thirst + self.b.drinkRestore)
+            if "clayPot" in s.structures: s.add("cleanWater", 3)
         s.fireLitToday = False
         s.actionsToday = {}
         lost = int(s.fatigue / b.fatiguePerLostHour)
@@ -348,8 +354,10 @@ def random_bot(e, rng):
 def forager_bot(e, rng):
     s = e.s
     plan = []
-    if s.count("water") < 4: plan.append(("fetchWater",))
+    water = s.count("water") + s.count("cleanWater")
+    if water < 4: plan.append(("fetchWater",))
     plan += [("explore", "stream"), ("explore", "palmGrove")]
+    if water < 2: plan += [("gather", "cleanWater", "palmGrove"), ("gather", "cleanWater", "beach")]
     if s.count("food") < 6:
         plan += [("gather", "food", "palmGrove"), ("fish",), ("gather", "food", "beach")]
     plan.append(("sleep",))
@@ -368,8 +376,10 @@ BUILD_ORDER = ["stoneAxe", "dryingRack", "rope", "clayPot", "torch", "shelter", 
 def planner_bot(e, rng):
     s, b = e.s, e.b
     plan = [("lightSignal",)]
-    if s.count("water") < 4: plan.append(("fetchWater",))
+    water = s.count("water") + s.count("cleanWater")
+    if water < 4: plan.append(("fetchWater",))
     if "stream" not in s.discovered: plan.append(("explore", "stream"))
+    if water < 2: plan += [("gather", "cleanWater", "palmGrove"), ("gather", "cleanWater", "beach")]
     if s.count("food") < 4:
         plan += [("gather", "food", r) for r in GATHER_SPOTS["food"]] + [("fish",)]
     if "palmGrove" not in s.discovered: plan.append(("explore", "palmGrove"))

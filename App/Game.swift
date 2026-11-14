@@ -412,7 +412,10 @@ final class Game: ObservableObject {
         scene.setAsleep(false)
         sleeping = false
         phase = .idle
-        scene.popup([[Art.sun, Art.number(engine.state.day)]])
+        var notes = [[Art.sun, Art.number(engine.state.day)]]
+        // Rain in the night: you drank, and a pot kept some.
+        if engine.state.weather == .rain { notes.append([Art.rain, Art.drop] + (engine.state.has(.clayPot) ? [PixelFont.image("+3")] : [])) }
+        scene.popup(notes)
         Sound.shared.play(.morning)
         refresh()
     }
@@ -444,9 +447,10 @@ final class Game: ObservableObject {
 extension Action {
     var icon: CGImage {
         switch self {
+        case .gather(.cleanWater, _): Art.coconut
         case let .gather(item, _): Art.icon(item)
         case .fish: Art.fish
-        case .fetchWater: Art.drop
+        case .fetchWater: Art.murkyDrop
         case .explore: Art.compass
         case .craft: Art.hammer
         case .makeFire: Art.flame

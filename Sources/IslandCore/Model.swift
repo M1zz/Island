@@ -12,11 +12,14 @@ public enum Skill: String, CaseIterable, Codable, CodingKeyRepresentable, Sendab
 }
 
 public enum Item: String, CaseIterable, Codable, CodingKeyRepresentable, Sendable {
-    case water, food, wood, dryWood, fiber, stone
+    /// `water` is raw, from the stream: it can make you sick unless boiled.
+    /// `cleanWater` comes from coconuts and rain and is safe as it is.
+    case water, cleanWater, food, wood, dryWood, fiber, stone
 
     public var displayName: String {
         switch self {
-        case .water: "Water"
+        case .water: "Raw water"
+        case .cleanWater: "Clean water"
         case .food: "Food"
         case .wood: "Wood"
         case .dryWood: "Dry wood"
@@ -61,9 +64,12 @@ public struct Yields: Sendable {
     public let wood: Double
     public let fiber: Double
     public let stone: Double
+    /// Coconuts: the only drink on the island before you find the stream.
+    public var coconuts = 0.0
 
     public func base(for item: Item) -> Double {
         switch item {
+        case .cleanWater: coconuts
         case .food: food
         case .wood: wood
         case .fiber: fiber
@@ -140,8 +146,8 @@ public enum Region: String, CaseIterable, Codable, Sendable {
 
     public var yields: Yields {
         switch self {
-        case .beach: Yields(food: 1.5, wood: 1.5, fiber: 0, stone: 0)
-        case .palmGrove: Yields(food: 2.5, wood: 2, fiber: 3, stone: 0)
+        case .beach: Yields(food: 1.5, wood: 1.5, fiber: 0, stone: 0, coconuts: 0.6)
+        case .palmGrove: Yields(food: 2.5, wood: 2, fiber: 3, stone: 0, coconuts: 1)
         case .stream: Yields(food: 1.5, wood: 1, fiber: 1, stone: 1)
         case .jungle: Yields(food: 2.5, wood: 4, fiber: 2, stone: 0)
         case .ridge: Yields(food: 0, wood: 1, fiber: 0, stone: 3)

@@ -33,6 +33,8 @@ public struct Balance: Codable, Sendable {
     // MARK: Hazards
     public var rainChance = 0.25
     public var rawWaterSicknessChance = 0.12
+    /// Coconuts hang high: the chance of a fall each time you climb for them, before skill.
+    public var palmFallChance = 0.08
     public var sicknessDamage = 15.0
     public var sicknessFatigue = 20.0
     public var injuryDamage = 15.0

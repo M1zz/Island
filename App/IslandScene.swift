@@ -515,6 +515,7 @@ final class IslandScene: SKScene {
             case .rock: image = Art.rock
             case .fern: image = Art.fern
             case .shell: image = Art.shell
+            case .driftwood: image = Art.driftwood
             }
             let sprite = SKSpriteNode()
             node.addChild(sprite)
