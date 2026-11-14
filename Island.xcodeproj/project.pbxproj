@@ -1,0 +1,833 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1AF64186CA3F5A22369A294B /* Balance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B0CBF2E9428AE01662A1027 /* Balance.swift */; };
+		2BAF05D493E54DD4F2D5A1B4 /* GameEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9055E4D5A4000816E1945731 /* GameEngine.swift */; };
+		2DD33C8D12719D69B8408C1D /* libIslandCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2056683D63309B7A5359A0F0 /* libIslandCore.a */; };
+		38A50BF8982D60004B0BB1DC /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F290D1D745A3139168DACB67 /* GameView.swift */; };
+		40A0D228EB83940FD5A6F2E5 /* Game.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0456F6A36101987FFD3E52CE /* Game.swift */; };
+		5C775D11CD4B78F6104961C0 /* IslandApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F24E760227371C13BFF30BB /* IslandApp.swift */; };
+		5F5E78BD72E12F4B6F89FE0F /* Journal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 892D2577E074FD512DB97CD8 /* Journal.swift */; };
+		657590F72C0725BBE62C1CD8 /* PixelKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A827A0DDE75B564298001762 /* PixelKit.swift */; };
+		7A61EA8AD497E93A13E2EC00 /* IslandCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB159BF1E4C01733B9C6371E /* IslandCoreTests.swift */; };
+		8FF66EC9FCEBE6B1B5CC6E91 /* IslandScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB67316A1A9BD6B489314581 /* IslandScene.swift */; };
+		AB57D97CB369E9C8262AF7E4 /* libIslandCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2056683D63309B7A5359A0F0 /* libIslandCore.a */; };
+		BED324403636E5FA79A7805F /* IslandMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C844D91EA5FB30AC34D902 /* IslandMap.swift */; };
+		BF2A7DFF0F37E38741D042B1 /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94D549CC628C6EEC17DCA93D /* GameState.swift */; };
+		C2817AC714344FD9AA223275 /* SkillSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D342D410C2BDF4FB4D21D46A /* SkillSet.swift */; };
+		C3A9939B492B71010F2FE11C /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BFAD751563D62999D8F290D /* main.swift */; };
+		C972687B2EC470ED25E70AB0 /* RNG.swift in Sources */ = {isa = PBXBuildFile; fileRef = E22E6573423A3D2B7F6FA5A8 /* RNG.swift */; };
+		DC1912151C0508DD1DCD427B /* Bots.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD9D64C2A9AB20492366D099 /* Bots.swift */; };
+		DCC8C482031AA2C5F10E619F /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4C1E86E8727CA396BE619C6 /* main.swift */; };
+		E0F4D6E4C1297EEAAD188AAB /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 833A68F20A9AB6149047B901 /* Model.swift */; };
+		E8EBD223024F421B1EC32374 /* Art.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3B1627EC67BCB1AF02FE0D6 /* Art.swift */; };
+		F5D0B70DF9ABB7AB299DFA73 /* libIslandCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2056683D63309B7A5359A0F0 /* libIslandCore.a */; };
+		FB4939F4423E294024AD9737 /* libIslandCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2056683D63309B7A5359A0F0 /* libIslandCore.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		737C73380BE73B4ED8601358 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 13E91F29951B0C081B9CFBDF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 70F8BB1F360ECE2D2E98A0F5;
+			remoteInfo = IslandCore;
+		};
+		83EC73E3889582AA47182489 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 13E91F29951B0C081B9CFBDF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 70F8BB1F360ECE2D2E98A0F5;
+			remoteInfo = IslandCore;
+		};
+		B48B2D05C2D1ADD6F24D7FD2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 13E91F29951B0C081B9CFBDF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 70F8BB1F360ECE2D2E98A0F5;
+			remoteInfo = IslandCore;
+		};
+		F9CDD25CA7E47261E4B98346 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 13E91F29951B0C081B9CFBDF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 70F8BB1F360ECE2D2E98A0F5;
+			remoteInfo = IslandCore;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0456F6A36101987FFD3E52CE /* Game.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Game.swift; sourceTree = "<group>"; };
+		2056683D63309B7A5359A0F0 /* libIslandCore.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libIslandCore.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		29366273AC33BF380AB9786E /* IslandApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IslandApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2BFAD751563D62999D8F290D /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		48C844D91EA5FB30AC34D902 /* IslandMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandMap.swift; sourceTree = "<group>"; };
+		6B0CBF2E9428AE01662A1027 /* Balance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Balance.swift; sourceTree = "<group>"; };
+		6F24E760227371C13BFF30BB /* IslandApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandApp.swift; sourceTree = "<group>"; };
+		7F13E4A40B259D8604D08750 /* island */ = {isa = PBXFileReference; includeInIndex = 0; path = island; sourceTree = BUILT_PRODUCTS_DIR; };
+		833A68F20A9AB6149047B901 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
+		892D2577E074FD512DB97CD8 /* Journal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Journal.swift; sourceTree = "<group>"; };
+		9055E4D5A4000816E1945731 /* GameEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameEngine.swift; sourceTree = "<group>"; };
+		94D549CC628C6EEC17DCA93D /* GameState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameState.swift; sourceTree = "<group>"; };
+		A4C1E86E8727CA396BE619C6 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		A827A0DDE75B564298001762 /* PixelKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelKit.swift; sourceTree = "<group>"; };
+		AB67316A1A9BD6B489314581 /* IslandScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandScene.swift; sourceTree = "<group>"; };
+		BB159BF1E4C01733B9C6371E /* IslandCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandCoreTests.swift; sourceTree = "<group>"; };
+		C38F54953B58F883D94CDC31 /* IslandCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IslandCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CD9D64C2A9AB20492366D099 /* Bots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bots.swift; sourceTree = "<group>"; };
+		D342D410C2BDF4FB4D21D46A /* SkillSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillSet.swift; sourceTree = "<group>"; };
+		D6B6C63B413DAFE95515B1F9 /* island-sim */ = {isa = PBXFileReference; includeInIndex = 0; path = "island-sim"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E22E6573423A3D2B7F6FA5A8 /* RNG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RNG.swift; sourceTree = "<group>"; };
+		F290D1D745A3139168DACB67 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
+		F3B1627EC67BCB1AF02FE0D6 /* Art.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Art.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0FA3C37D00D4610E2630589D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F5D0B70DF9ABB7AB299DFA73 /* libIslandCore.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E20120F9E3A7548E7C7C0F9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2DD33C8D12719D69B8408C1D /* libIslandCore.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48A260608D7DF20318F941AD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FB4939F4423E294024AD9737 /* libIslandCore.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D6E67BCE657FBD1BF9BC21D1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB57D97CB369E9C8262AF7E4 /* libIslandCore.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		15AD1293322E7F25FC7B65C7 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F3B1627EC67BCB1AF02FE0D6 /* Art.swift */,
+				0456F6A36101987FFD3E52CE /* Game.swift */,
+				F290D1D745A3139168DACB67 /* GameView.swift */,
+				6F24E760227371C13BFF30BB /* IslandApp.swift */,
+				48C844D91EA5FB30AC34D902 /* IslandMap.swift */,
+				AB67316A1A9BD6B489314581 /* IslandScene.swift */,
+				A827A0DDE75B564298001762 /* PixelKit.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		2E1AEE430D8B1207646C426A /* island */ = {
+			isa = PBXGroup;
+			children = (
+				2BFAD751563D62999D8F290D /* main.swift */,
+			);
+			path = island;
+			sourceTree = "<group>";
+		};
+		45AAAFF51925239DC19407A7 /* island-sim */ = {
+			isa = PBXGroup;
+			children = (
+				A4C1E86E8727CA396BE619C6 /* main.swift */,
+			);
+			path = "island-sim";
+			sourceTree = "<group>";
+		};
+		741E925B860DB49AF8DB7589 /* IslandCoreTests */ = {
+			isa = PBXGroup;
+			children = (
+				BB159BF1E4C01733B9C6371E /* IslandCoreTests.swift */,
+			);
+			path = IslandCoreTests;
+			sourceTree = "<group>";
+		};
+		88628F7743549C552FF70A6C /* IslandCore */ = {
+			isa = PBXGroup;
+			children = (
+				6B0CBF2E9428AE01662A1027 /* Balance.swift */,
+				CD9D64C2A9AB20492366D099 /* Bots.swift */,
+				9055E4D5A4000816E1945731 /* GameEngine.swift */,
+				94D549CC628C6EEC17DCA93D /* GameState.swift */,
+				892D2577E074FD512DB97CD8 /* Journal.swift */,
+				833A68F20A9AB6149047B901 /* Model.swift */,
+				E22E6573423A3D2B7F6FA5A8 /* RNG.swift */,
+				D342D410C2BDF4FB4D21D46A /* SkillSet.swift */,
+			);
+			path = IslandCore;
+			sourceTree = "<group>";
+		};
+		8F5B80C15ADD88DC5B0EEFEE = {
+			isa = PBXGroup;
+			children = (
+				15AD1293322E7F25FC7B65C7 /* App */,
+				B0116657D51A8128090E05CF /* Sources */,
+				C2705D7B66874DB2470A86C6 /* Tests */,
+				B3A0C7135413FAF3860532B8 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B0116657D51A8128090E05CF /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				2E1AEE430D8B1207646C426A /* island */,
+				45AAAFF51925239DC19407A7 /* island-sim */,
+				88628F7743549C552FF70A6C /* IslandCore */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		B3A0C7135413FAF3860532B8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7F13E4A40B259D8604D08750 /* island */,
+				D6B6C63B413DAFE95515B1F9 /* island-sim */,
+				29366273AC33BF380AB9786E /* IslandApp.app */,
+				C38F54953B58F883D94CDC31 /* IslandCoreTests.xctest */,
+				2056683D63309B7A5359A0F0 /* libIslandCore.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C2705D7B66874DB2470A86C6 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				741E925B860DB49AF8DB7589 /* IslandCoreTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2A56994FC7E6695FEE2980DB /* IslandApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0562F8C699E2EBE394EEC0C9 /* Build configuration list for PBXNativeTarget "IslandApp" */;
+			buildPhases = (
+				CC2278FB0CADC941530BFCE2 /* Sources */,
+				D6E67BCE657FBD1BF9BC21D1 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				710DCBB339A6323EC6411E7E /* PBXTargetDependency */,
+			);
+			name = IslandApp;
+			packageProductDependencies = (
+			);
+			productName = IslandApp;
+			productReference = 29366273AC33BF380AB9786E /* IslandApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		3A62A441AA98ED62CA943D63 /* island-sim */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 15D3E1928AEA32AC01AC770E /* Build configuration list for PBXNativeTarget "island-sim" */;
+			buildPhases = (
+				540E4898D99102880B51A447 /* Sources */,
+				0FA3C37D00D4610E2630589D /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				04E5FCA2C1092284A2A0D748 /* PBXTargetDependency */,
+			);
+			name = "island-sim";
+			packageProductDependencies = (
+			);
+			productName = "island-sim";
+			productReference = D6B6C63B413DAFE95515B1F9 /* island-sim */;
+			productType = "com.apple.product-type.tool";
+		};
+		449D208F2562D1A05BA4B37E /* IslandCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 48AFD3D1520D95B47ECF430F /* Build configuration list for PBXNativeTarget "IslandCoreTests" */;
+			buildPhases = (
+				47CFE0645F094640DE922749 /* Sources */,
+				3E20120F9E3A7548E7C7C0F9 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C53C9ED720BAF94E760CC4D3 /* PBXTargetDependency */,
+			);
+			name = IslandCoreTests;
+			packageProductDependencies = (
+			);
+			productName = IslandCoreTests;
+			productReference = C38F54953B58F883D94CDC31 /* IslandCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		70F8BB1F360ECE2D2E98A0F5 /* IslandCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2084F004B5F08E20CB213519 /* Build configuration list for PBXNativeTarget "IslandCore" */;
+			buildPhases = (
+				C54FC920464265E37D4F507D /* Sources */,
+				800D5D07FB8BE8D6ADBF7F93 /* Copy Swift Objective-C Interface Header */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = IslandCore;
+			packageProductDependencies = (
+			);
+			productName = IslandCore;
+			productReference = 2056683D63309B7A5359A0F0 /* libIslandCore.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+		E7BAAEF86942A432D3DFA84C /* island */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2FDAEACF98F8E7187EBB9E64 /* Build configuration list for PBXNativeTarget "island" */;
+			buildPhases = (
+				F9766E23A45F52B811FDAAFA /* Sources */,
+				48A260608D7DF20318F941AD /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				234802A5FAFE90E4A23023DD /* PBXTargetDependency */,
+			);
+			name = island;
+			packageProductDependencies = (
+			);
+			productName = island;
+			productReference = 7F13E4A40B259D8604D08750 /* island */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		13E91F29951B0C081B9CFBDF /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					2A56994FC7E6695FEE2980DB = {
+						ProvisioningStyle = Automatic;
+					};
+					3A62A441AA98ED62CA943D63 = {
+						ProvisioningStyle = Automatic;
+					};
+					449D208F2562D1A05BA4B37E = {
+						ProvisioningStyle = Automatic;
+					};
+					70F8BB1F360ECE2D2E98A0F5 = {
+						ProvisioningStyle = Automatic;
+					};
+					E7BAAEF86942A432D3DFA84C = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 600301102C12CBBCB74A427A /* Build configuration list for PBXProject "Island" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8F5B80C15ADD88DC5B0EEFEE;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				2A56994FC7E6695FEE2980DB /* IslandApp */,
+				70F8BB1F360ECE2D2E98A0F5 /* IslandCore */,
+				449D208F2562D1A05BA4B37E /* IslandCoreTests */,
+				E7BAAEF86942A432D3DFA84C /* island */,
+				3A62A441AA98ED62CA943D63 /* island-sim */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		800D5D07FB8BE8D6ADBF7F93 /* Copy Swift Objective-C Interface Header */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(DERIVED_SOURCES_DIR)/$(SWIFT_OBJC_INTERFACE_HEADER_NAME)",
+			);
+			name = "Copy Swift Objective-C Interface Header";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/include/$(PRODUCT_MODULE_NAME)/$(SWIFT_OBJC_INTERFACE_HEADER_NAME)",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "ditto \"${SCRIPT_INPUT_FILE_0}\" \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		47CFE0645F094640DE922749 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7A61EA8AD497E93A13E2EC00 /* IslandCoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		540E4898D99102880B51A447 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DCC8C482031AA2C5F10E619F /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C54FC920464265E37D4F507D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1AF64186CA3F5A22369A294B /* Balance.swift in Sources */,
+				DC1912151C0508DD1DCD427B /* Bots.swift in Sources */,
+				2BAF05D493E54DD4F2D5A1B4 /* GameEngine.swift in Sources */,
+				BF2A7DFF0F37E38741D042B1 /* GameState.swift in Sources */,
+				5F5E78BD72E12F4B6F89FE0F /* Journal.swift in Sources */,
+				E0F4D6E4C1297EEAAD188AAB /* Model.swift in Sources */,
+				C972687B2EC470ED25E70AB0 /* RNG.swift in Sources */,
+				C2817AC714344FD9AA223275 /* SkillSet.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC2278FB0CADC941530BFCE2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E8EBD223024F421B1EC32374 /* Art.swift in Sources */,
+				40A0D228EB83940FD5A6F2E5 /* Game.swift in Sources */,
+				38A50BF8982D60004B0BB1DC /* GameView.swift in Sources */,
+				5C775D11CD4B78F6104961C0 /* IslandApp.swift in Sources */,
+				BED324403636E5FA79A7805F /* IslandMap.swift in Sources */,
+				8FF66EC9FCEBE6B1B5CC6E91 /* IslandScene.swift in Sources */,
+				657590F72C0725BBE62C1CD8 /* PixelKit.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F9766E23A45F52B811FDAAFA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C3A9939B492B71010F2FE11C /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		04E5FCA2C1092284A2A0D748 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 70F8BB1F360ECE2D2E98A0F5 /* IslandCore */;
+			targetProxy = F9CDD25CA7E47261E4B98346 /* PBXContainerItemProxy */;
+		};
+		234802A5FAFE90E4A23023DD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 70F8BB1F360ECE2D2E98A0F5 /* IslandCore */;
+			targetProxy = B48B2D05C2D1ADD6F24D7FD2 /* PBXContainerItemProxy */;
+		};
+		710DCBB339A6323EC6411E7E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 70F8BB1F360ECE2D2E98A0F5 /* IslandCore */;
+			targetProxy = 83EC73E3889582AA47182489 /* PBXContainerItemProxy */;
+		};
+		C53C9ED720BAF94E760CC4D3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 70F8BB1F360ECE2D2E98A0F5 /* IslandCore */;
+			targetProxy = 737C73380BE73B4ED8601358 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0F578F88236D04370065AC9C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		4391B015B42DAB4893FACB5F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.leeo.island.island-sim";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		4BF49F2EC49CC952B329C7F3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.leeo.island.island;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		67475749D68E75D1E3BD3046 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.leeo.island.IslandCore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		7519214B336BC09F2042DA63 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.leeo.island.IslandCoreTests;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		758C8F53C701F0EBEC4EEF8F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.leeo.island.IslandApp;
+				PRODUCT_MODULE_NAME = IslandApp;
+				PRODUCT_NAME = "Unknown Island";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		75A1653E7F9C0A4BCFF27707 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.leeo.island.IslandCore;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		7814440E5B18A5D2D75F86A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7B6BD0B6922EB08FE980E25E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.leeo.island.IslandApp;
+				PRODUCT_MODULE_NAME = IslandApp;
+				PRODUCT_NAME = "Unknown Island";
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Debug;
+		};
+		C7506E1A5835B58468F1D3DE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.leeo.island.IslandCoreTests;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		DB6BAD3276D9DA09A98E4E02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.leeo.island.island;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		DC1337FFAE89C4FE61764C8E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.leeo.island.island-sim";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0562F8C699E2EBE394EEC0C9 /* Build configuration list for PBXNativeTarget "IslandApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7B6BD0B6922EB08FE980E25E /* Debug */,
+				758C8F53C701F0EBEC4EEF8F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		15D3E1928AEA32AC01AC770E /* Build configuration list for PBXNativeTarget "island-sim" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4391B015B42DAB4893FACB5F /* Debug */,
+				DC1337FFAE89C4FE61764C8E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		2084F004B5F08E20CB213519 /* Build configuration list for PBXNativeTarget "IslandCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				75A1653E7F9C0A4BCFF27707 /* Debug */,
+				67475749D68E75D1E3BD3046 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		2FDAEACF98F8E7187EBB9E64 /* Build configuration list for PBXNativeTarget "island" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4BF49F2EC49CC952B329C7F3 /* Debug */,
+				DB6BAD3276D9DA09A98E4E02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		48AFD3D1520D95B47ECF430F /* Build configuration list for PBXNativeTarget "IslandCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7519214B336BC09F2042DA63 /* Debug */,
+				C7506E1A5835B58468F1D3DE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		600301102C12CBBCB74A427A /* Build configuration list for PBXProject "Island" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7814440E5B18A5D2D75F86A3 /* Debug */,
+				0F578F88236D04370065AC9C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 13E91F29951B0C081B9CFBDF /* Project object */;
+}

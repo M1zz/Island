@@ -1,0 +1,82 @@
+# Xcode 프로젝트 정의. 고친 뒤: xcodegen generate
+# 소스 폴더는 Package.swift 와 같은 것을 쓴다 (swift run / swift test 도 그대로 된다).
+name: Island
+options:
+  bundleIdPrefix: com.leeo.island
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+targets:
+  IslandApp:
+    type: application
+    platform: macOS
+    sources: [App]
+    settings:
+      base:
+        PRODUCT_NAME: Unknown Island
+        PRODUCT_MODULE_NAME: IslandApp
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.games
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+      configs:
+        # The island is generated at launch; unoptimized that takes far too long.
+        Debug:
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+    dependencies:
+      - target: IslandCore
+  IslandCore:
+    type: library.static
+    platform: macOS
+    sources: [Sources/IslandCore]
+  island:
+    type: tool
+    platform: macOS
+    sources: [Sources/island]
+    dependencies:
+      - target: IslandCore
+  island-sim:
+    type: tool
+    platform: macOS
+    sources: [Sources/island-sim]
+    dependencies:
+      - target: IslandCore
+  IslandCoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/IslandCoreTests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: IslandCore
+schemes:
+  IslandApp:
+    build:
+      targets:
+        IslandApp: all
+    run:
+      config: Debug
+    test:
+      targets: [IslandCoreTests]
+  island:
+    build:
+      targets:
+        island: all
+    run:
+      config: Debug
+    test:
+      targets: [IslandCoreTests]
+  island-sim:
+    build:
+      targets:
+        island-sim: all
+    run:
+      config: Release
+      commandLineArguments:
+        "1000": true
