@@ -117,6 +117,14 @@ public enum Region: String, CaseIterable, Codable, Sendable {
         }
     }
 
+    /// No trees overhead: the midday sun gets at you here.
+    public var isOpenSky: Bool {
+        switch self {
+        case .beach, .ridge, .summit: true
+        case .palmGrove, .stream, .jungle: false
+        }
+    }
+
     public var difficulty: Int {
         switch self {
         case .beach, .palmGrove: 0
@@ -235,13 +243,14 @@ public enum Action: Hashable, Codable, Sendable {
     case lightSignal
     /// Let one waking hour pass doing nothing useful. It costs what any hour costs:
     /// thirst, hunger, a little energy. Turning in early is the only real rest.
-    case rest
+    /// `shaded` is whether you spend it out of the sun.
+    case rest(shaded: Bool)
     /// Rest for the remaining hours and end the day.
     case sleep
 }
 
 public enum DeathCause: String, Codable, Sendable {
-    case dehydration, starvation, exposure, injuries
+    case dehydration, starvation, exposure, heatstroke, injuries
 }
 
 public enum Outcome: Codable, Sendable, Equatable {

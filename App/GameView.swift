@@ -50,7 +50,10 @@ struct GameView: View {
             // What actually kills a castaway: thirst, hunger, cold, exhaustion.
             gauge(Art.drop, state.needs.thirst, 0x4a9bdc)
             gauge(Art.stomach, state.needs.hunger, 0xf08a3c)
-            gauge(Art.thermometer, state.needs.warmth, 0xe8743c)
+            HStack(spacing: 2 * px) {
+                PixelImage(image: Art.thermometer)
+                PixelDial(value: state.needs.temperature / 100, width: 30)
+            }
             gauge(Art.bolt, 100 - state.needs.fatigue, 0x7fc653)
         }
         .padding(4 * px)
@@ -306,7 +309,7 @@ struct GameView: View {
         case .storm: (picture, day, cause) = (Art.storm, state.day, nil)
         case let .died(on, why):
             (picture, day) = (Art.skull, on)
-            cause = why == .dehydration ? Art.drop : why == .starvation ? Art.stomach : why == .exposure ? Art.thermometer : Art.heart
+            cause = why == .dehydration ? Art.drop : why == .starvation ? Art.stomach : why == .exposure ? Art.thermometer : why == .heatstroke ? Art.sun : Art.heart
         }
         return VStack(spacing: 5 * px) {
             HStack(spacing: 4 * px) {

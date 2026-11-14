@@ -50,16 +50,28 @@ class Balance:
     sleepRecovery: float = 45.0
     shelterSleepRecovery: float = 65.0
     rainSleepPenalty: float = 20.0
-    rainChillPerHour: float = 2.0
-    sunWarmthPerHour: float = 4.0
-    fireWarmth: float = 30.0
-    nightChill: float = 20.0
-    fireNightWarmth: float = 15.0
-    shelterNightWarmth: float = 10.0
-    rainNightChill: float = 10.0
-    shiverThreshold: float = 40.0
+    dawnHour: int = 6
+    middayStart: int = 10
+    middayEnd: int = 15
+    rainChillPerHour: float = 1.0
+    sunWarmthPerHour: float = 2.0
+    fireWarmth: float = 15.0
+    nightChill: float = 10.0
+    fireNightWarmth: float = 7.5
+    shelterNightWarmth: float = 5.0
+    rainNightChill: float = 5.0
+    shiverThreshold: float = 20.0
     shiverFatigue: float = 10.0
     hypothermiaDamage: float = 20.0
+    sunHeatWorking: float = 10.0
+    sunHeatResting: float = 6.0
+    shadeCoolPerHour: float = 6.0
+    waterCool: float = 10.0
+    sweatThreshold: float = 70.0
+    heatThirstPerHour: float = 1.5
+    heatstrokeDamage: float = 20.0
+    heatstrokeFatigue: float = 20.0
+    awakeFatiguePerHour: float = 1.0
     restRecoveryPerHour: float = 4.0
     fatiguePerLostHour: float = 20.0
     rainChance: float = 0.25
@@ -133,7 +145,7 @@ class State:
         self.hoursLeft = b.hoursPerDay
         self.weather = "clear"
         self.thirst, self.hunger, self.fatigue, self.health = 100.0, 100.0, 0.0, 100.0
-        self.warmth = 100.0
+        self.temperature = 50.0
         self.inv = dict(cleanWater=3, food=3)
         self.xp = {}
         self.discovered = {"beach"}
@@ -173,6 +185,7 @@ class Engine:
     def hours(self, a):
         k = a[0]
         if k == "gather": return 2 + TRAVEL[a[2]]
+        if k == "rest": return 1
         if k == "fish": return 3
         if k == "fetchWater": return 1 + TRAVEL["stream"]
         if k == "explore": return 3 + TRAVEL[a[1]]
@@ -189,6 +202,7 @@ class Engine:
         k = a[0]
         if k == "sleep": return True
         if self.hours(a) > s.hoursLeft: return False
+        if k == "rest": return True
         if k == "gather": return a[2] in s.discovered and YIELD[a[2]][a[1]] > 0
         if k == "fish": return True
         if k == "fetchWater": return "stream" in s.discovered
@@ -240,6 +254,12 @@ class Engine:
         if k == "sleep":
             self.end_day()
             return True
+        if k == "rest":
+            s.hoursLeft -= 1
+            s.fatigue = min(100, s.fatigue + b.awakeFatiguePerHour)
+            struck = self.pass_hours(1, not a[1], False)
+            if s.health <= 0: s.outcome = ("died", s.day, "heatstroke" if struck else "injuries")
+            return True
         cost = self.hours(a)
         s.hoursLeft -= cost
         fph = b.exploreFatiguePerHour if k == "explore" else b.fatiguePerHour
@@ -289,7 +309,7 @@ class Engine:
             if raining: p -= 0.1 if "shelter" in s.structures else 0.25
             ok = self.rng.chance(clamp(p, 0.05, 0.95))
             s.fireLitToday = ok
-            if ok: s.warmth = min(100, s.warmth + b.fireWarmth)
+            if ok and s.temperature < 50: s.temperature = min(50, s.temperature + b.fireWarmth)
             self.gain(15, "survival", 1 + (1 if raining else 0), not ok, "makeFire")
             self.boil()
         elif k == "lightSignal":
@@ -299,13 +319,45 @@ class Engine:
             if ok: s.outcome = ("rescued", s.day)
             else: s.add("dryWood", -b.signalFailureWoodLoss)
             self.gain(40, "survival", 3, not ok, "lightSignal")
-        s.hoursSpentToday += cost
-        self.wear(cost)
-        s.warmth = clamp(s.warmth + (-b.rainChillPerHour if s.weather == "rain" else b.sunWarmthPerHour) * cost, 0, 100)
-        self.drink()
+        if k == "fetchWater" and s.temperature > 50: s.temperature = max(50, s.temperature - b.waterCool)
+        struck = self.pass_hours(cost, self.open_sky(a), True)
         if s.outcome is None and s.health <= 0:
-            s.outcome = ("died", s.day, "injuries")
+            s.outcome = ("died", s.day, "heatstroke" if struck else "injuries")
         return ok
+
+    def open_sky(self, a):
+        k = a[0]
+        opened = lambda r: r in ("beach", "ridge", "summit")
+        if k == "gather": return opened(a[2])
+        if k == "explore": return opened(a[1])
+        if k in ("fish", "lightSignal"): return True
+        if k == "fetchWater": return False
+        if k == "craft":
+            region = RECIPES[a[1]][6]
+            return opened(region) if region else "shelter" not in self.s.structures
+        if k == "makeFire": return "shelter" not in self.s.structures
+        return False
+
+    def pass_hours(self, hours, open_, working):
+        s, b = self.s, self.b
+        s.hoursSpentToday += hours
+        self.wear(hours)
+        start = b.dawnHour + b.hoursPerDay - s.hoursLeft - hours
+        for hour in range(start, start + hours):
+            t = s.temperature
+            if s.weather == "rain": t -= b.rainChillPerHour
+            elif t < 50: t = min(50, t + b.sunWarmthPerHour)
+            elif not open_: t = max(50, t - b.shadeCoolPerHour)
+            elif b.middayStart <= hour < b.middayEnd: t += b.sunHeatWorking if working else b.sunHeatResting
+            s.temperature = clamp(t, 0, 100)
+            if t > b.sweatThreshold: s.thirst = max(0, s.thirst - b.heatThirstPerHour)
+        struck = s.temperature >= 100
+        if struck:
+            s.health -= b.heatstrokeDamage
+            s.fatigue = min(100, s.fatigue + b.heatstrokeFatigue)
+            s.temperature = 80
+        self.drink()
+        return struck
 
     def wear(self, hours):
         s, b = self.s, self.b
@@ -337,15 +389,19 @@ class Engine:
         f = s.fatigue - b.restRecoveryPerHour * s.hoursLeft
         f -= b.shelterSleepRecovery if shelter else b.sleepRecovery
         if s.weather == "rain" and not shelter: f += b.rainSleepPenalty
-        idle = max(0, b.hoursPerDay - s.hoursSpentToday)
-        if s.weather != "rain" or not shelter:
-            s.warmth = clamp(s.warmth + (-b.rainChillPerHour if s.weather == "rain" else b.sunWarmthPerHour) * idle, 0, 100)
+        for _ in range(max(0, b.hoursPerDay - s.hoursSpentToday)):
+            t = s.temperature
+            if s.weather == "rain":
+                if not shelter: t -= b.rainChillPerHour
+            elif t < 50: t = min(50, t + b.sunWarmthPerHour)
+            else: t = max(50, t - b.shadeCoolPerHour)
+            s.temperature = clamp(t, 0, 100)
         chill = b.nightChill
         if s.fireLitToday: chill -= b.fireNightWarmth
         if shelter: chill -= b.shelterNightWarmth
         if s.weather == "rain" and not shelter: chill += b.rainNightChill
-        s.warmth = max(0, s.warmth - max(0, chill))
-        if s.warmth < b.shiverThreshold: f += b.shiverFatigue
+        s.temperature = max(0, min(50, s.temperature) - max(0, chill))
+        if s.temperature < b.shiverThreshold: f += b.shiverFatigue
         s.fatigue = clamp(f, 0, 100)
         self.wear(max(0, b.hoursPerDay - s.hoursSpentToday))
         self.boil()
@@ -357,11 +413,11 @@ class Engine:
         if s.count("food") > b.foodSpoilThreshold: s.add("food", -1)
         if s.thirst <= 0: s.health -= b.dehydrationDamage
         if s.hunger <= 0: s.health -= b.starvationDamage
-        if s.warmth <= 0: s.health -= b.hypothermiaDamage
-        if s.thirst > 50 and s.hunger > 50 and s.warmth > 50 and s.fatigue < 50:
+        if s.temperature <= 0: s.health -= b.hypothermiaDamage
+        if s.thirst > 50 and s.hunger > 50 and 25 < s.temperature < 75 and s.fatigue < 50:
             s.health = min(100, s.health + b.dailyRegen)
         if s.health <= 0:
-            cause = "dehydration" if s.thirst <= 0 else ("starvation" if s.hunger <= 0 else ("exposure" if s.warmth <= 0 else "injuries"))
+            cause = "dehydration" if s.thirst <= 0 else ("starvation" if s.hunger <= 0 else ("exposure" if s.temperature <= 0 else "injuries"))
             s.outcome = ("died", s.day, cause)
             return
         s.day += 1
@@ -421,6 +477,7 @@ BUILD_ORDER = ["stoneAxe", "dryingRack", "rope", "clayPot", "torch", "shelter", 
 def planner_bot(e, rng):
     s, b = e.s, e.b
     plan = [("lightSignal",)]
+    if s.temperature > 75: plan += [("fetchWater",), ("rest", True)]
     water = s.count("water") + s.count("cleanWater")
     if water < 4: plan.append(("fetchWater",))
     if "stream" not in s.discovered: plan.append(("explore", "stream"))
@@ -428,7 +485,7 @@ def planner_bot(e, rng):
     if s.count("food") < 4:
         plan += [("gather", "food", r) for r in GATHER_SPOTS["food"]] + [("fish",)]
     if "palmGrove" not in s.discovered: plan.append(("explore", "palmGrove"))
-    if s.warmth < 50 and not s.fireLitToday and s.actionsToday.get("makeFire", 0) < 2:
+    if s.temperature < 25 and not s.fireLitToday and s.actionsToday.get("makeFire", 0) < 2:
         plan.append(("makeFire",))
     plan += [("craft", r) for r in BUILD_ORDER]
     plan += [("explore", "jungle"), ("explore", "ridge"), ("explore", "summit")]

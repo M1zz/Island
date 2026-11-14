@@ -27,23 +27,38 @@ public struct Balance: Codable, Sendable {
     public var shelterSleepRecovery = 65.0
     public var rainSleepPenalty = 20.0
 
-    // Body heat
+    // Body temperature (50 is right)
+    /// The day starts at this hour of the clock; midday is when the sun does harm.
+    public var dawnHour = 6
+    public var middayStart = 10
+    public var middayEnd = 15
     /// Lost each waking hour out in the rain.
-    public var rainChillPerHour = 2.0
-    /// Regained each waking hour in dry weather.
-    public var sunWarmthPerHour = 4.0
-    /// Regained at once when a fire catches.
-    public var fireWarmth = 30.0
+    public var rainChillPerHour = 1.0
+    /// Regained each dry hour while cold.
+    public var sunWarmthPerHour = 2.0
+    /// Regained at once, while cold, when a fire catches.
+    public var fireWarmth = 15.0
     /// Lost over a night in the open, before anything that helps or hurts.
-    public var nightChill = 20.0
-    public var fireNightWarmth = 15.0
-    public var shelterNightWarmth = 10.0
+    public var nightChill = 10.0
+    public var fireNightWarmth = 7.5
+    public var shelterNightWarmth = 5.0
     /// Extra lost on a rainy night with no roof.
-    public var rainNightChill = 10.0
+    public var rainNightChill = 5.0
     /// Below this you shiver instead of sleeping.
-    public var shiverThreshold = 40.0
+    public var shiverThreshold = 20.0
     public var shiverFatigue = 10.0
     public var hypothermiaDamage = 20.0
+    /// Gained each midday hour under open sky, working or just standing there.
+    public var sunHeatWorking = 10.0
+    public var sunHeatResting = 6.0
+    /// Shed each hour in the shade, and at once at the water.
+    public var shadeCoolPerHour = 6.0
+    public var waterCool = 10.0
+    /// Above this you sweat: extra thirst each hour.
+    public var sweatThreshold = 70.0
+    public var heatThirstPerHour = 1.5
+    public var heatstrokeDamage = 20.0
+    public var heatstrokeFatigue = 20.0
     public var restRecoveryPerHour = 4.0
     /// Being up and about wears you down a little even when you do nothing. Only sleep restores.
     public var awakeFatiguePerHour = 1.0

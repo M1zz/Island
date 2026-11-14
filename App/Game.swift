@@ -30,7 +30,7 @@ struct Prompt: Equatable {
 
 /// Runs `GameEngine` in real time: you walk the island yourself, hours pass on their own,
 /// work takes a while, night follows day. The rules stay in the engine. An idle hour is the
-/// engine's `.rest`, so wandering costs exactly what sleeping early would.
+/// engine's `.rest`: thirst, hunger, a little energy, and the sun if you spend it in the open.
 final class Game: ObservableObject {
     @Published private(set) var engine: GameEngine
     @Published private(set) var journal: Journal
@@ -328,7 +328,34 @@ final class Game: ObservableObject {
             if drunk > 0, engine.state.needs.thirst > before.needs.thirst { notes.append([Art.icon(item), PixelFont.image("-\(drunk)")]) }
         }
         if engine.state.needs.health < before.needs.health, before.water > engine.state.water { notes.append([Art.murkyDrop, Art.heart, Art.cross]) }
+        // Collapsed in the sun.
+        if engine.state.needs.temperature >= 75, engine.state.needs.health <= before.needs.health - engine.balance.heatstrokeDamage {
+            notes.append([Art.sun, Art.thermometer, Art.cross])
+        }
         return notes
+    }
+
+    // MARK: Sun and shade
+
+    /// A living giant close enough that the castaway stands in the pool of shade at its foot.
+    private func shadeTree(reach: Int) -> [IslandMap.Prop] {
+        let spot = scene.heroSpot
+        return IslandMap.props(around: spot.x, spot.y, reach: reach).filter { $0.kind == .palm || $0.kind == .tree }
+    }
+
+    /// Under trees, or in the shadow of one, or under your own roof.
+    private func inShade() -> Bool {
+        if !here.isOpenSky { return true }
+        let spot = scene.heroSpot
+        if engine.state.has(.shelter), hypot(Double(spot.x - IslandMap.bed.x), Double(spot.y - IslandMap.bed.y)) < 24 { return true }
+        return shadeTree(reach: 44).contains { abs(spot.x - $0.x - 6) < 38 && abs(spot.y - $0.y) < 14 }
+    }
+
+    private func nearestShade() -> (x: Int, y: Int)? {
+        let spot = scene.heroSpot
+        return shadeTree(reach: 700)
+            .min { hypot(Double($0.x - spot.x), Double($0.y - spot.y)) < hypot(Double($1.x - spot.x), Double($1.y - spot.y)) }
+            .map { ($0.x + 14, $0.y + 4) }
     }
 
     // MARK: Nudges
@@ -359,7 +386,11 @@ final class Game: ObservableObject {
         if state.count(.food) == 0 || (state.needs.hunger < 50 && state.count(.food) < 2) {
             return ([Art.fruit], source(.food))
         }
-        if state.needs.warmth < 50, !state.fireLitToday {
+        if state.needs.temperature > 70 {
+            // Out of the sun: the nearest thing that throws a shadow.
+            return ([Art.thermometer, Art.sun, Art.treeIcon], nearestShade())
+        }
+        if state.needs.temperature < 25, !state.fireLitToday {
             return state.count(.wood) + state.count(.dryWood) > 0
                 ? ([Art.thermometer, Art.flame], IslandMap.fire) : ([Art.thermometer, Art.log], source(.wood))
         }
@@ -425,7 +456,7 @@ final class Game: ObservableObject {
             if idle >= 1 {
                 idle = 0
                 let before = engine.state
-                engine.perform(.rest)
+                engine.perform(.rest(shaded: inShade()))
                 scene.popup(sips(since: before))
                 refresh()
                 if engine.state.isOver { finish() }
@@ -546,7 +577,7 @@ final class Game: ObservableObject {
         scene.setSpent(Set(spent.keys))
         var notes = [[Art.sun, Art.number(engine.state.day)]]
         // A cold night shows in the morning.
-        if engine.state.needs.warmth < engine.balance.shiverThreshold { notes.append([Art.thermometer, Art.cross]) }
+        if engine.state.needs.temperature < engine.balance.shiverThreshold { notes.append([Art.thermometer, Art.cross]) }
         // Rain in the night: you drank, and a pot kept some.
         if engine.state.weather == .rain { notes.append([Art.rain, Art.drop] + (engine.state.has(.clayPot) ? [PixelFont.image("+3")] : [])) }
         scene.popup(notes)

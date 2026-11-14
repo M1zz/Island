@@ -127,10 +127,14 @@ public struct GameEngine: Sendable {
             return ActionResult(success: true, messages: messages)
         }
 
-        if case .rest = action {
+        if case let .rest(shaded) = action {
             state.hoursLeft -= 1
             state.needs.fatigue = min(100, state.needs.fatigue + balance.awakeFatiguePerHour)
-            let messages = pass(hours: 1)
+            var (messages, struck) = pass(hours: 1, open: !shaded, working: false)
+            if state.needs.health <= 0 {
+                state.outcome = .died(day: state.day, cause: struck ? .heatstroke : .injuries)
+                messages.append("You did not get up again.")
+            }
             state.log.append(contentsOf: messages)
             return ActionResult(success: true, messages: messages)
         }
@@ -232,7 +236,9 @@ public struct GameEngine: Sendable {
             }
             success = rng.chance(clamp(probability, 0.05, 0.95))
             state.fireLitToday = success
-            if success { state.needs.warmth = min(100, state.needs.warmth + balance.fireWarmth) }
+            if success, state.needs.temperature < 50 {
+                state.needs.temperature = min(50, state.needs.temperature + balance.fireWarmth)
+            }
             messages.append(success ? "The fire caught. Tonight you eat cooked food." : "The fire died out.")
             messages += boil()
             messages += gainXP(15, .survival, difficulty: 1 + (raining ? 1 : 0), failed: !success, key: "makeFire")
@@ -254,11 +260,16 @@ public struct GameEngine: Sendable {
             break
         }
 
-        messages += pass(hours: cost)
+        // Wading in for water or standing in the surf takes the heat off.
+        if action == .fetchWater, state.needs.temperature > 50 {
+            state.needs.temperature = max(50, state.needs.temperature - balance.waterCool)
+        }
+        let (passing, struck) = pass(hours: cost, open: isUnderOpenSky(action), working: true)
+        messages += passing
 
         if state.outcome == nil, state.needs.health <= 0 {
-            state.outcome = .died(day: state.day, cause: .injuries)
-            messages.append("Your injuries were too much.")
+            state.outcome = .died(day: state.day, cause: struck ? .heatstroke : .injuries)
+            messages.append(struck ? "The sun was too much." : "Your injuries were too much.")
         }
         state.log.append(contentsOf: messages)
         return ActionResult(success: success, messages: messages)
@@ -268,11 +279,24 @@ public struct GameEngine: Sendable {
 
     /// Waking hours go by: you get thirstier and hungrier the whole time, not just overnight,
     /// and you drink when you need to if there is anything to drink.
-    private mutating func pass(hours: Int) -> [String] {
+    private mutating func pass(hours: Int, open: Bool, working: Bool) -> (messages: [String], heatstroke: Bool) {
         state.hoursSpentToday += hours
         wear(hours: hours)
-        weather(hours: hours)
-        return drink()
+        let struck = weather(hours: hours, open: open, working: working)
+        return ((struck ? ["Heatstroke. You should not have stayed out in the sun."] : []) + drink(), struck)
+    }
+
+    /// Whether doing this keeps you out under the sun. Camp is on the beach, so a shelter is its only shade.
+    private func isUnderOpenSky(_ action: Action) -> Bool {
+        switch action {
+        case let .gather(_, region), let .explore(region): region.isOpenSky
+        case .fish, .lightSignal: true
+        case .fetchWater: false
+        case let .craft(recipe): recipe.spec.requiresRegion.map(\.isOpenSky) ?? !state.has(.shelter)
+        case .makeFire: !state.has(.shelter)
+        case let .rest(shaded): !shaded
+        case .sleep: false
+        }
     }
 
     private mutating func wear(hours: Int) {
@@ -281,10 +305,49 @@ public struct GameEngine: Sendable {
         state.needs.hunger = max(0, state.needs.hunger - balance.hungerDecayPerDay * share)
     }
 
-    /// Out in the rain you lose heat by the hour; in dry weather you get it back.
-    private mutating func weather(hours: Int) {
-        let change = state.weather == .rain ? -balance.rainChillPerHour : balance.sunWarmthPerHour
-        state.needs.warmth = clamp(state.needs.warmth + change * Double(hours), 0, 100)
+    /// Body temperature, hour by hour: rain chills, the midday sun under open sky heats,
+    /// shade cools, and a dry hour warms you back up if you were cold. Returns whether you collapsed from the heat.
+    private mutating func weather(hours: Int, open: Bool, working: Bool) -> Bool {
+        // `hoursLeft` has already been charged for these hours.
+        let start = balance.dawnHour + balance.hoursPerDay - state.hoursLeft - hours
+        for hour in start..<start + hours {
+            var heat = state.needs.temperature
+            if state.weather == .rain {
+                heat -= balance.rainChillPerHour
+            } else if heat < 50 {
+                heat = min(50, heat + balance.sunWarmthPerHour)
+            } else if !open {
+                heat = max(50, heat - balance.shadeCoolPerHour)
+            } else if hour >= balance.middayStart && hour < balance.middayEnd {
+                heat += working ? balance.sunHeatWorking : balance.sunHeatResting
+            }
+            state.needs.temperature = clamp(heat, 0, 100)
+            if heat > balance.sweatThreshold {
+                state.needs.thirst = max(0, state.needs.thirst - balance.heatThirstPerHour)
+            }
+        }
+        guard state.needs.temperature >= 100 else { return false }
+        state.needs.health -= balance.heatstrokeDamage
+        state.needs.fatigue = min(100, state.needs.fatigue + balance.heatstrokeFatigue)
+        // You come to in whatever shade you crawled into.
+        state.needs.temperature = 80
+        return true
+    }
+
+    /// The daylight left when you turn in is spent at camp: out of the sun, or drying off, or under a roof.
+    private mutating func settle(hours: Int) {
+        let roof = state.has(.shelter)
+        for _ in 0..<hours {
+            var heat = state.needs.temperature
+            if state.weather == .rain {
+                if !roof { heat -= balance.rainChillPerHour }
+            } else if heat < 50 {
+                heat = min(50, heat + balance.sunWarmthPerHour)
+            } else {
+                heat = max(50, heat - balance.shadeCoolPerHour)
+            }
+            state.needs.temperature = clamp(heat, 0, 100)
+        }
     }
 
     /// With a fire going and a pot to put on it, stream water is boiled and becomes clean.
@@ -346,16 +409,14 @@ public struct GameEngine: Sendable {
             fatigue += balance.rainSleepPenalty
             messages.append("Rain soaked you through the night.")
         }
-        // What is left of the daylight is spent at camp: drying off in the sun, or under a roof if there is one.
-        let idle = max(0, balance.hoursPerDay - state.hoursSpentToday)
-        if state.weather != .rain || !hasShelter { weather(hours: idle) }
-        // The night takes heat. A fire and a roof keep some of it in.
+        settle(hours: max(0, balance.hoursPerDay - state.hoursSpentToday))
+        // The night cools you off, then takes heat. A fire and a roof keep some of it in.
         var chill = balance.nightChill
         if state.fireLitToday { chill -= balance.fireNightWarmth }
         if hasShelter { chill -= balance.shelterNightWarmth }
         if state.weather == .rain && !hasShelter { chill += balance.rainNightChill }
-        state.needs.warmth = max(0, state.needs.warmth - max(0, chill))
-        if state.needs.warmth < balance.shiverThreshold {
+        state.needs.temperature = max(0, min(50, state.needs.temperature) - max(0, chill))
+        if state.needs.temperature < balance.shiverThreshold {
             fatigue += balance.shiverFatigue
             messages.append("You shivered through the night.")
         }
@@ -386,17 +447,17 @@ public struct GameEngine: Sendable {
             state.needs.health -= balance.starvationDamage
             messages.append("You are starving.")
         }
-        if state.needs.warmth <= 0 {
+        if state.needs.temperature <= 0 {
             state.needs.health -= balance.hypothermiaDamage
             messages.append("The cold is in your bones.")
         }
-        if state.needs.thirst > 50 && state.needs.hunger > 50 && state.needs.warmth > 50 && state.needs.fatigue < 50 {
+        if state.needs.thirst > 50 && state.needs.hunger > 50 && state.needs.temperature > 25 && state.needs.temperature < 75 && state.needs.fatigue < 50 {
             state.needs.health = min(100, state.needs.health + balance.dailyRegen)
         }
 
         if state.needs.health <= 0 {
             let cause: DeathCause = state.needs.thirst <= 0 ? .dehydration
-                : state.needs.hunger <= 0 ? .starvation : state.needs.warmth <= 0 ? .exposure : .injuries
+                : state.needs.hunger <= 0 ? .starvation : state.needs.temperature <= 0 ? .exposure : .injuries
             state.outcome = .died(day: state.day, cause: cause)
             messages.append("You did not survive the night (\(cause.rawValue)).")
             return messages

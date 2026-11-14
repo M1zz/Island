@@ -91,10 +91,22 @@ final class IslandCoreTests: XCTestCase {
         XCTAssertLessThan(rate, 0.80, "Too easy: planner rescue rate \(rate)")
     }
 
+    func testMiddaySunBringsHeatstrokeAndShadeDoesNot() {
+        // Find a dry first day, then stand in the open until evening.
+        let seed = (1...50).first { GameEngine(seed: $0).state.weather == .clear }!
+        var sun = GameEngine(seed: seed)
+        var shade = GameEngine(seed: seed)
+        while sun.state.hoursLeft > 3 { sun.perform(.rest(shaded: false)) }
+        while shade.state.hoursLeft > 3 { shade.perform(.rest(shaded: true)) }
+        XCTAssertGreaterThan(sun.state.needs.temperature, 75)
+        XCTAssertEqual(shade.state.needs.temperature, 50)
+        XCTAssertLessThan(sun.state.needs.thirst, shade.state.needs.thirst)
+    }
+
     func testNeedsFallThroughTheDay() {
         var engine = GameEngine(seed: 7)
         let morning = engine.state.needs
-        engine.perform(.rest)
+        engine.perform(.rest(shaded: true))
         XCTAssertLessThan(engine.state.needs.thirst, morning.thirst)
         XCTAssertLessThan(engine.state.needs.hunger, morning.hunger)
         XCTAssertGreaterThan(engine.state.needs.fatigue, morning.fatigue)
@@ -103,7 +115,7 @@ final class IslandCoreTests: XCTestCase {
     func testStayingUpCostsTheSameFoodAndWaterButNoRest() {
         var up = GameEngine(seed: 7)
         var early = GameEngine(seed: 7)
-        while up.state.hoursLeft > 0 { up.perform(.rest) }
+        while up.state.hoursLeft > 0 { up.perform(.rest(shaded: true)) }
         up.perform(.sleep)
         early.perform(.sleep)
         // A day is a day for thirst and hunger, however it was spent.

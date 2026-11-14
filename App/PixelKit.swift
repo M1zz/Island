@@ -225,6 +225,32 @@ extension View {
     }
 }
 
+/// A gauge where the middle is right and both ends are trouble: cold on the left, heat on the right.
+struct PixelDial: View {
+    /// 0...1; 0.5 is right.
+    let value: Double
+    var width: CGFloat = 40
+    var height: CGFloat = 6
+
+    var body: some View {
+        let inner = width - 2
+        ZStack(alignment: .leading) {
+            Rectangle().fill(Color(hex: Ink.border))
+            HStack(spacing: 0) {
+                Rectangle().fill(Color(hex: 0x6ea8e0)).frame(width: (inner * 0.2).rounded() * px)
+                Rectangle().fill(Color(hex: 0xfff3d6))
+                Rectangle().fill(Color(hex: 0xe0564c)).frame(width: (inner * 0.2).rounded() * px)
+            }
+            .padding(px)
+            // The needle.
+            Rectangle().fill(Color(hex: Ink.border))
+                .frame(width: 2 * px)
+                .offset(x: (1 + (inner - 2) * min(max(value, 0), 1)).rounded() * px)
+        }
+        .frame(width: width * px, height: height * px)
+    }
+}
+
 struct PixelBar: View {
     let value: Double
     let color: UInt32

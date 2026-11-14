@@ -59,6 +59,9 @@ public struct PlannerBot: Bot {
         let balance = engine.balance
         var plan: [Action] = [.lightSignal]
 
+        // Too hot: to the water if there is any, else out of the sun.
+        if state.needs.temperature > 75 { plan += [.fetchWater, .rest(shaded: true)] }
+
         // 1. Stay alive
         if state.water < 4 { plan.append(.fetchWater) }
         if !state.discovered.contains(.stream) { plan.append(.explore(.stream)) }
@@ -70,7 +73,7 @@ public struct PlannerBot: Bot {
         if !state.discovered.contains(.palmGrove) { plan.append(.explore(.palmGrove)) }
 
         // Cold: get a fire going with whatever will burn.
-        if state.needs.warmth < 50 && !state.fireLitToday && state.actionsToday["makeFire", default: 0] < 2 {
+        if state.needs.temperature < 25 && !state.fireLitToday && state.actionsToday["makeFire", default: 0] < 2 {
             plan.append(.makeFire)
         }
 
