@@ -76,6 +76,12 @@ final class Game: ObservableObject {
     private var clock = 6.0
     private var held: Set<UInt16> = []
     private var nearProp: IslandMap.Prop.ID?
+    /// The thing being worked on right now.
+    private var inHand: IslandMap.Prop.ID?
+    /// What has been gathered, and on which day. It comes back after a while:
+    /// new wood washes ashore, coconuts ripen.
+    private var spent: [IslandMap.Prop.ID: Int] = [:]
+    private let regrowDays = 3
     private let journalURL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".island/journal.json")
 
@@ -178,10 +184,16 @@ final class Game: ObservableObject {
             startNight()
             return
         }
-        if case .gather = action, let nearProp { scene.shake(prop: nearProp) }
+        inHand = nil
+        if case .gather = action, let nearProp {
+            inHand = nearProp
+            scene.work(on: nearProp) { Sound.shared.play(.work) }
+        } else {
+            Sound.shared.play(.work)
+        }
         working = action
-        Sound.shared.play(.work)
         scene.setPrompt(nil)
+        scene.point(at: nil)
         phase = .working(action, from: clock, elapsed: 0, duration: 0.9 + Double(engine.hours(for: action)) * 0.8)
     }
 
@@ -194,6 +206,8 @@ final class Game: ObservableObject {
         sleeping = false
         crafting = false
         mapOpen = false
+        spent = [:]
+        scene.setSpent([])
         scene.reset()
         refresh()
     }
@@ -202,7 +216,11 @@ final class Game: ObservableObject {
 
     private func canWalk(_ x: Int, _ y: Int) -> Bool {
         guard let region = IslandMap.region(x: x, y: y) else { return false }
-        return IslandMap.shore(x, y) < 0.9985 && engine.state.discovered.contains(region) && !IslandMap.blocked(x, y)
+        guard IslandMap.shore(x, y) < 0.9985, engine.state.discovered.contains(region), !IslandMap.blocked(x, y) else { return false }
+        // Rocks, brush and driftwood are in the way until they are carried off.
+        return !IslandMap.props(around: x, y, reach: 6).contains { prop in
+            prop.kind.isSolid && spent[prop.id] == nil && hypot(Double(x - prop.x), Double(y - prop.y + 2)) < 5
+        }
     }
 
     /// The closest thing worth doing from where the castaway stands.
@@ -214,20 +232,21 @@ final class Game: ObservableObject {
 
         var found: Action?
         nearProp = nil
-        if distance(IslandMap.bed.x, IslandMap.bed.y) < 12 {
+        if distance(IslandMap.bed.x, IslandMap.bed.y) < 18 {
             found = .sleep
-        } else if distance(IslandMap.fire.x, IslandMap.fire.y) < 13, !state.fireLitToday {
+        } else if distance(IslandMap.fire.x, IslandMap.fire.y) < 18, !state.fireLitToday {
             found = .makeFire
-        } else if distance(IslandMap.signal.x, IslandMap.signal.y) < 14 {
+        } else if distance(IslandMap.signal.x, IslandMap.signal.y) < 20 {
             found = .lightSignal
         } else {
-            var best = 13.0
-            for prop in IslandMap.props(around: spot.x, spot.y, reach: 24) {
+            // An arm's reach and a step.
+            var best = 22.0
+            for prop in IslandMap.props(around: spot.x, spot.y, reach: 34) {
                 let item = prop.kind.item
-                guard prop.region.yields.base(for: item) > 0,
+                guard prop.region.yields.base(for: item) > 0, spent[prop.id] == nil,
                       state.discovered.contains(prop.region) else { continue }
                 // A giant's trunk keeps you at arm's length.
-                let d = distance(prop.x, prop.y - 2) - (prop.kind.isTall ? 8 : 0)
+                let d = distance(prop.x, prop.y - 2) - (prop.kind.isTall ? 14 : 0)
                 if d < best {
                     best = d
                     nearProp = prop.id
@@ -259,6 +278,7 @@ final class Game: ObservableObject {
         }
         if next != prompt { prompt = next }
         scene.setPrompt(next)
+        scene.point(at: nearProp)
     }
 
     /// Why an action is locked right now.
@@ -355,6 +375,11 @@ final class Game: ObservableObject {
         let result = engine.perform(action)
         working = nil
         scene.setProgress(nil)
+        if let inHand, result.success {
+            spent[inHand] = engine.state.day
+            scene.collect(inHand)
+        }
+        inHand = nil
 
         var notes: [[CGImage]] = []
         for item in Item.allCases {
@@ -412,6 +437,9 @@ final class Game: ObservableObject {
         scene.setAsleep(false)
         sleeping = false
         phase = .idle
+        // What was gathered a few days ago has come back.
+        spent = spent.filter { engine.state.day - $0.value < regrowDays }
+        scene.setSpent(Set(spent.keys))
         var notes = [[Art.sun, Art.number(engine.state.day)]]
         // Rain in the night: you drank, and a pot kept some.
         if engine.state.weather == .rain { notes.append([Art.rain, Art.drop] + (engine.state.has(.clayPot) ? [PixelFont.image("+3")] : [])) }

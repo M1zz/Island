@@ -1,5 +1,6 @@
 import IslandCore
 import SpriteKit
+import SwiftUI
 
 /// The island as you see it. It only draws; every rule lives in `GameEngine`.
 final class IslandScene: SKScene {
@@ -25,6 +26,8 @@ final class IslandScene: SKScene {
     private var squares: [Square: SKNode] = [:]
     private var known: Set<Region> = []
     private var propNodes: [IslandMap.Prop.ID: SKSpriteNode] = [:]
+    /// Things already gathered and not grown back yet.
+    private var spent: Set<IslandMap.Prop.ID> = []
     private var giants: [IslandMap.Prop.ID: SKSpriteNode] = [:]
     private let overview = SKSpriteNode()
     private let painter = DispatchQueue(label: "island.painter", qos: .userInitiated)
@@ -281,6 +284,7 @@ final class IslandScene: SKScene {
         follow()
         zzz.isHidden = true
         setPrompt(nil)
+        point(at: nil)
         ship.removeAction(forKey: "sail")
         ship.isHidden = true
         giants.values.forEach { $0.alpha = 1 }
@@ -298,7 +302,7 @@ final class IslandScene: SKScene {
             known = state.discovered
             // The clouds lift: repaint the ground in view, and the map.
             if squares.isEmpty { tend(now: true) } else { squares.keys.forEach { paint($0) } }
-            for node in propNodes.values { node.isHidden = !known.contains(node.userData?["region"] as? Region ?? .beach) }
+            propNodes.values.forEach(show)
             let mask = IslandMap.mask(known), step = Int(zoom / 2)
             painter.async { [weak self] in
                 let image = IslandMap.overview(known: mask, step: step)
@@ -381,19 +385,127 @@ final class IslandScene: SKScene {
         guard next != shown else { return }
         shown = next
         prompt.isHidden = next == nil
-        guard let next else { return }
+        guard let next else { return point(at: nil) }
         let image = Bitmap.plate(next.icons, face: next.enabled ? Ink.panel : 0xc9c0b6)
         prompt.texture = texture(image)
         prompt.size = CGSize(width: image.width, height: image.height)
     }
 
-    /// Gives a tree or rock a little shake while it is being worked on.
-    func shake(prop id: IslandMap.Prop.ID) {
-        guard let node = propNodes[id] else { return }
+    // MARK: Things you can touch
+
+    private func picture(of kind: IslandMap.Kind, _ id: IslandMap.Prop.ID) -> CGImage {
+        let pick = abs(id.cellX &+ id.cellY &* 3)
+        switch kind {
+        case .palm: return (spent.contains(id) ? Art.barePalms : Art.palms)[pick % Art.palms.count]
+        case .tree: return Art.trees[pick % Art.trees.count]
+        case .snag: return Art.snags[pick % Art.snags.count]
+        case .bush: return Art.bush
+        case .rock: return Art.rock
+        case .fern: return Art.fern
+        case .shell: return Art.shell
+        case .driftwood: return Art.driftwood
+        }
+    }
+
+    /// Shows a thing as it is now: hidden under cloud, carried off, or stripped.
+    private func show(_ sprite: SKSpriteNode) {
+        guard let id = sprite.userData?["id"] as? IslandMap.Prop.ID, let kind = sprite.userData?["kind"] as? IslandMap.Kind,
+              let region = sprite.userData?["region"] as? Region else { return }
+        sprite.isHidden = !known.contains(region) || (spent.contains(id) && kind.isCarriedOff)
+        sprite.texture = stamp(picture(of: kind, id))
+        sprite.setScale(1)
+        sprite.alpha = 1
+    }
+
+    /// What has been gathered and has not grown back. Anything else is whole again.
+    func setSpent(_ ids: Set<IslandMap.Prop.ID>) {
+        let changed = spent.symmetricDifference(ids)
+        spent = ids
+        for id in changed { propNodes[id].map(show) }
+    }
+
+    /// Turns the castaway to the thing and works at it, blow after blow, until `setProgress(nil)`.
+    func work(on id: IslandMap.Prop.ID, hit: @escaping () -> Void) {
+        guard let node = propNodes[id], let kind = node.userData?["kind"] as? IslandMap.Kind else { return }
+        let dx = node.position.x - hero.position.x, dy = node.position.y - hero.position.y
+        facing = abs(dx) > abs(dy) * 0.6 ? .side : dy > 0 ? .back : .front
+        if facing == .side { hero.xScale = dx < 0 ? -1 : 1 }
         // A giant barely stirs.
-        let sway: CGFloat = id.tall ? 0.012 : 0.07
-        let wiggle = SKAction.sequence([.rotate(toAngle: sway, duration: 0.09), .rotate(toAngle: -sway, duration: 0.18), .rotate(toAngle: 0, duration: 0.09)])
-        node.run(.repeat(wiggle, count: 5))
+        let sway: CGFloat = id.tall ? 0.012 : 0.09
+        let chips: [UInt32] = switch kind {
+        case .palm, .bush, .fern: [0x6f9f48, 0x487f3f]
+        case .tree, .driftwood: [0xa87a48, 0x86592f]
+        case .snag: [0xa89d92, 0xd6cec4]
+        case .rock: [0x9a8f85, 0xc9c0b6]
+        case .shell: [0xf29bb0, 0xffffff]
+        }
+        let blow = SKAction.run { [weak self, weak node] in
+            guard let self, let node else { return }
+            hit()
+            // Where the hands are: low on a giant, right on a small thing.
+            let at = CGPoint(x: node.position.x + (id.tall ? (dx < 0 ? 6 : -6) : 0), y: node.position.y + (id.tall ? 10 : 3))
+            for index in 0..<4 {
+                let chip = SKSpriteNode(color: NSColor(Color(hex: chips[index % 2])), size: CGSize(width: index % 2 + 1, height: 1))
+                chip.position = at
+                chip.zPosition = node.zPosition + 1
+                let out = CGFloat(index) * 5 - 7.5 + CGFloat.random(in: -2...2)
+                let arc = SKAction.sequence([.moveBy(x: out * 0.5, y: 7, duration: 0.14), .moveBy(x: out * 0.5, y: -9, duration: 0.2)])
+                chip.run(.sequence([.group([arc, .sequence([.wait(forDuration: 0.22), .fadeOut(withDuration: 0.12)])]), .removeFromParent()]))
+                self.addChild(chip)
+            }
+        }
+        let wiggle = SKAction.sequence([.rotate(toAngle: sway, duration: 0.06), .rotate(toAngle: -sway, duration: 0.1), .rotate(toAngle: 0, duration: 0.06)])
+        node.run(.repeatForever(.sequence([blow, wiggle, .wait(forDuration: 0.3)])), withKey: "worked")
+        worked = node
+    }
+
+    /// The work paid off: small things are carried away, a palm drops its coconuts.
+    func collect(_ id: IslandMap.Prop.ID) {
+        spent.insert(id)
+        guard let node = propNodes[id], let kind = node.userData?["kind"] as? IslandMap.Kind else { return }
+        if kind.isCarriedOff {
+            node.run(.sequence([.group([.scale(to: 0.3, duration: 0.18), .moveBy(x: 0, y: 6, duration: 0.18), .fadeOut(withDuration: 0.18)]),
+                                .run { [weak self, weak node] in node.map { $0.position.y -= 6; self?.show($0) } }]))
+        } else if kind == .palm {
+            show(node)
+            for index in 0..<3 {
+                let nut = SKSpriteNode(texture: stamp(Art.coconut))
+                nut.position = CGPoint(x: node.position.x + CGFloat(index * 6 - 2), y: node.position.y + 96)
+                nut.zPosition = node.zPosition + 2
+                let fall = SKAction.moveBy(x: CGFloat(index * 5 - 5), y: -92, duration: 0.42)
+                fall.timingMode = .easeIn
+                let bounce = SKAction.sequence([.moveBy(x: 2, y: 7, duration: 0.1), .moveBy(x: 2, y: -7, duration: 0.1)])
+                nut.run(.sequence([.wait(forDuration: Double(index) * 0.12), fall, bounce, .wait(forDuration: 0.5), .fadeOut(withDuration: 0.3), .removeFromParent()]))
+                addChild(nut)
+            }
+        }
+    }
+
+    private weak var worked: SKNode?
+
+    private lazy var pointer: SKSpriteNode = {
+        let pointer = SKSpriteNode(texture: stamp(Art.pointer))
+        pointer.zPosition = 26550
+        pointer.isHidden = true
+        addChild(pointer)
+        bob(pointer, by: 2, every: 0.35)
+        return pointer
+    }()
+    private var pointed: IslandMap.Prop.ID?
+
+    /// Hovers an arrow over the thing Space would use, so it is clear which one is meant.
+    func point(at id: IslandMap.Prop.ID?) {
+        guard id != pointed else { return }
+        pointed = id
+        guard let id, let node = propNodes[id] else {
+            pointer.isHidden = true
+            return
+        }
+        pointer.removeAllActions()
+        // On a giant the arrow marks the trunk, not the faraway crown.
+        pointer.position = CGPoint(x: node.position.x, y: node.position.y + (id.tall ? 44 : node.size.height + 6))
+        pointer.isHidden = false
+        bob(pointer, by: 2, every: 0.35)
     }
 
     /// 0...1 while busy, nil when free.
@@ -402,6 +514,9 @@ final class IslandScene: SKScene {
         progressFill.isHidden = value == nil
         guard let value else {
             hero.removeAction(forKey: "work")
+            worked?.removeAction(forKey: "worked")
+            worked?.zRotation = 0
+            worked = nil
             // The hop may have been cut off mid-air.
             if let workOrigin, !asleep { hero.position = workOrigin }
             workOrigin = nil
@@ -505,23 +620,11 @@ final class IslandScene: SKScene {
         squares[square] = node
         addChild(node)
         for prop in IslandMap.props(chunkX: square.x, chunkY: square.y) {
-            let image: CGImage
-            let pick = abs(prop.id.cellX &+ prop.id.cellY &* 3)
-            switch prop.kind {
-            case .palm: image = Art.palms[pick % Art.palms.count]
-            case .tree: image = Art.trees[pick % Art.trees.count]
-            case .snag: image = Art.snags[pick % Art.snags.count]
-            case .bush: image = Art.bush
-            case .rock: image = Art.rock
-            case .fern: image = Art.fern
-            case .shell: image = Art.shell
-            case .driftwood: image = Art.driftwood
-            }
             let sprite = SKSpriteNode()
             node.addChild(sprite)
-            place(sprite, image, x: prop.x, y: prop.y)
-            sprite.userData = ["id": prop.id, "region": prop.region]
-            sprite.isHidden = !known.contains(prop.region)
+            place(sprite, picture(of: prop.kind, prop.id), x: prop.x, y: prop.y)
+            sprite.userData = ["id": prop.id, "region": prop.region, "kind": prop.kind]
+            show(sprite)
             propNodes[prop.id] = sprite
             if prop.kind.isTall {
                 giants[prop.id] = sprite
@@ -633,6 +736,15 @@ final class IslandScene: SKScene {
         let delta = min(0.1, currentTime - (lastUpdate ?? currentTime))
         lastUpdate = currentTime
         if !asleep, !mapOpen { hero.zPosition = mapHeight - hero.position.y }
+        // Grass and brush stir as you push past.
+        if hero.action(forKey: "step") != nil {
+            for (id, node) in propNodes where !id.tall && !node.isHidden && node.action(forKey: "brushed") == nil
+                && abs(node.position.x - hero.position.x) < 8 && abs(node.position.y - hero.position.y) < 6 {
+                guard let kind = node.userData?["kind"] as? IslandMap.Kind, kind == .fern || kind == .bush else { continue }
+                let lean: CGFloat = node.position.x < hero.position.x ? 0.16 : -0.16
+                node.run(.sequence([.rotate(toAngle: lean, duration: 0.08), .rotate(toAngle: -lean * 0.5, duration: 0.14), .rotate(toAngle: 0, duration: 0.1)]), withKey: "brushed")
+            }
+        }
         // Walk behind a giant and it turns to glass, so you never lose yourself.
         for giant in giants.values where !giant.isHidden {
             let behind = !mapOpen && hero.position.y > giant.position.y && hero.position.y < giant.position.y + giant.size.height - 8

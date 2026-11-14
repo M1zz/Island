@@ -131,7 +131,9 @@ enum Art {
 
     /// The trees here dwarf a castaway, so they are grown from a recipe instead of drawn by hand.
     static let trees = (0..<3).map(makeTree)
-    static let palms = (0..<3).map(makePalm)
+    static let palms = (0..<3).map { makePalm($0, nuts: true) }
+    /// The same palms after their coconuts have been taken.
+    static let barePalms = (0..<3).map { makePalm($0, nuts: false) }
 
     private static func speck(_ x: Int, _ y: Int, _ salt: Int) -> Int {
         var h = UInt32(truncatingIfNeeded: x &* 374_761_393 &+ y &* 668_265_263 &+ salt &* 2_246_822_519)
@@ -194,7 +196,7 @@ enum Art {
         return Bitmap.image(width: width, height: height, pixels: pixels)
     }
 
-    private static func makePalm(_ variant: Int) -> CGImage {
+    private static func makePalm(_ variant: Int, nuts: Bool) -> CGImage {
         let width = 170, height = 150
         var pixels = [UInt32?](repeating: nil, count: width * height)
         func put(_ x: Int, _ y: Int, _ color: UInt32) {
@@ -234,7 +236,7 @@ enum Art {
             }
         }
 
-        for nut in [(-5, 6), (4, 7), (-1, 11)] {
+        for nut in nuts ? [(-5, 6), (4, 7), (-1, 11)] : [] {
             for dy in -4...4 {
                 for dx in -4...4 where dx * dx + dy * dy <= 16 {
                     put(Int(crown.x) + nut.0 + dx, Int(crown.y) + nut.1 + dy,
@@ -778,6 +780,14 @@ enum Art {
         ".TTTTn.",
         ".....Tn",
         "......T",
+    ])
+    /// Points down at the thing Space would use.
+    static let pointer = Bitmap.image([
+        "kkkkkkk",
+        "kyyyyyk",
+        ".kyyyk.",
+        "..kyk..",
+        "...k...",
     ])
     static let speaker = Bitmap.image([
         "...k...",

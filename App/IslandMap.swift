@@ -30,6 +30,12 @@ enum IslandMap {
             }
         }
 
+        /// Small but in the way: you walk around it, not through it.
+        var isSolid: Bool { self == .rock || self == .bush || self == .driftwood }
+
+        /// Picked up whole, so it is gone once gathered. The rest are only stripped.
+        var isCarriedOff: Bool { self == .rock || self == .driftwood || self == .shell || self == .fern }
+
         /// Giants: they block the way and you can walk behind them.
         var isTall: Bool { self == .palm || self == .tree || self == .snag }
     }
