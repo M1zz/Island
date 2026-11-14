@@ -76,6 +76,8 @@ final class Game: ObservableObject {
     private var clock = 6.0
     private var held: Set<UInt16> = []
     private var nearProp: IslandMap.Prop.ID?
+    /// How long the castaway has stood still; long enough, and a thought comes.
+    private var still = 0.0
     /// The thing being worked on right now.
     private var inHand: IslandMap.Prop.ID?
     /// What has been gathered, and on which day. It comes back after a while:
@@ -198,6 +200,8 @@ final class Game: ObservableObject {
         }
         scene.startWork(motion, on: inHand, axe: engine.state.has(.stoneAxe)) { Sound.shared.play(.work) }
         working = action
+        still = 0
+        scene.stopThinking()
         scene.setPrompt(nil)
         scene.point(at: nil)
         phase = .working(action, from: clock, elapsed: 0, duration: 0.9 + Double(engine.hours(for: action)) * 0.8)
@@ -305,6 +309,66 @@ final class Game: ObservableObject {
         return .daylight
     }
 
+    // MARK: Nudges
+
+    /// The nearest thing of a kind that is still there to gather, within a long walk.
+    private func nearest(_ wanted: (IslandMap.Prop) -> Bool) -> (x: Int, y: Int)? {
+        let spot = scene.heroSpot
+        return IslandMap.props(around: spot.x, spot.y, reach: 700)
+            .filter { wanted($0) && spent[$0.id] == nil && engine.state.discovered.contains($0.region)
+                && $0.region.yields.base(for: $0.kind.item) > 0 }
+            .min { hypot(Double($0.x - spot.x), Double($0.y - spot.y)) < hypot(Double($1.x - spot.x), Double($1.y - spot.y)) }
+            .map { ($0.x, $0.y) }
+    }
+
+    /// What a sensible castaway would be thinking about right now, and where to go for it.
+    /// Body first, then the next step toward rescue.
+    private func nudge() -> (icons: [CGImage], spot: (x: Int, y: Int)?)? {
+        let state = engine.state
+        let spot = scene.heroSpot
+        func source(_ item: Item) -> (x: Int, y: Int)? { nearest { $0.kind.item == item } }
+
+        if state.hoursLeft <= 2 { return ([Art.moon], IslandMap.bed) }
+        if state.water == 0 || (state.needs.thirst < 50 && state.water < 2) {
+            return state.discovered.contains(.stream)
+                ? ([Art.murkyDrop], IslandMap.riverbank(y: spot.y))
+                : ([Art.coconut, Art.drop], source(.cleanWater))
+        }
+        if state.count(.food) == 0 || (state.needs.hunger < 50 && state.count(.food) < 2) {
+            return ([Art.fruit], source(.food))
+        }
+        if !state.fireLitToday, state.hoursLeft <= 5 {
+            return state.count(.wood) + state.count(.dryWood) > 0 ? ([Art.flame], IslandMap.fire) : ([Art.log, Art.flame], source(.wood))
+        }
+
+        // The way off the island, one step at a time.
+        enum Step { case find(Region), make(Recipe) }
+        let steps: [Step] = [
+            .find(.palmGrove), .find(.stream), .make(.stoneAxe), .make(.dryingRack), .find(.jungle), .make(.rope),
+            .make(.clayPot), .find(.ridge), .make(.torch), .find(.summit), .make(.signalFrame),
+        ]
+        for step in steps {
+            switch step {
+            case let .find(region):
+                guard !state.discovered.contains(region) else { continue }
+                return ([Art.compass, Art.icon(region)], IslandMap.anchor(region))
+            case let .make(recipe):
+                guard case let .structure(structure) = recipe.spec.output, !state.has(structure) else { continue }
+                let spec = recipe.spec
+                if let (item, _) = spec.cost.first(where: { state.count($0.0) < $0.1 }) {
+                    return ([Art.picture(structure), Art.icon(item)], item == .dryWood ? nil : source(item))
+                }
+                if engine.level(.crafting) < spec.requiredLevel { return ([Art.picture(structure), Art.hammer, Art.up], nil) }
+                if let region = spec.requiresRegion, region != here { return ([Art.picture(structure)], IslandMap.anchor(region)) }
+                return ([Art.key("C"), Art.picture(structure)], nil)
+            }
+        }
+        if state.count(.dryWood) < engine.balance.signalDryWood {
+            return state.count(.wood) >= 3 ? ([Art.key("C"), Art.dryLog], nil) : ([Art.dryLog, Art.log], source(.wood))
+        }
+        return ([Art.ship, Art.flame], IslandMap.signal)
+    }
+
     // MARK: Time
 
     private func tick(_ delta: TimeInterval) {
@@ -326,6 +390,10 @@ final class Game: ObservableObject {
             let dy: CGFloat = (held.isDisjoint(with: Key.up) ? 0 : 1) - (held.isDisjoint(with: Key.down) ? 0 : 1)
             scene.move(dx: dx, dy: dy, seconds: delta, canWalk: canWalk)
             look()
+            // Standing around wondering what to do: the castaway thinks of what matters most.
+            let before = still
+            still = dx == 0 && dy == 0 ? still + delta : 0
+            if before < 2.5, still >= 2.5, let nudge = nudge() { scene.think(nudge.icons, toward: nudge.spot) }
 
             idle += delta / secondsPerHour
             if idle >= 1 {

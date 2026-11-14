@@ -1034,6 +1034,18 @@ enum Art {
         ".........kEk",
         "..........k.",
     ])
+    /// Points the way in a thought; drawn pointing right and turned as needed.
+    static let wayArrow = Bitmap.image([
+        "....k....",
+        "....kk...",
+        "kkkkkyk..",
+        "kyyyyyyk.",
+        "kyyyyyyyk",
+        "kyyyyyyk.",
+        "kkkkkyk..",
+        "....kk...",
+        "....k....",
+    ])
     /// Points down at the thing Space would use.
     static let pointer = Bitmap.image([
         "kkkkkkk",

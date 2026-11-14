@@ -140,6 +140,13 @@ enum IslandMap {
         return best
     }
 
+    /// Where the river is at the height of `y`.
+    static func riverbank(y: Int) -> (x: Int, y: Int) {
+        let first = streamPoints[0].1, last = streamPoints[streamSteps].1
+        let step = min(max(Int((Double(y) - first) / (last - first) * Double(streamSteps)), 0), streamSteps)
+        return (Int(streamPoints[step].0), Int(streamPoints[step].1))
+    }
+
     // MARK: Ground
 
     /// The regions found so far, packed so that drawing can check them quickly.

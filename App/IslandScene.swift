@@ -613,6 +613,49 @@ final class IslandScene: SKScene {
 
     private weak var worked: SKNode?
 
+    // MARK: Thoughts
+
+    private lazy var thought: SKSpriteNode = {
+        let thought = SKSpriteNode()
+        thought.anchorPoint = CGPoint(x: 0.5, y: 0)
+        thought.zPosition = 26700
+        thought.alpha = 0
+        addChild(thought)
+        // The trail of little bubbles that makes it a thought, not speech.
+        for (index, size) in [3.0, 2.0].enumerated() {
+            let dot = SKSpriteNode(color: .white, size: CGSize(width: size, height: size))
+            dot.position = CGPoint(x: -4 + CGFloat(index) * 3, y: -3 - CGFloat(index) * 4)
+            thought.addChild(dot)
+        }
+        return thought
+    }()
+    private lazy var way: SKSpriteNode = {
+        let way = SKSpriteNode(texture: stamp(Art.wayArrow))
+        way.zPosition = 26700
+        way.alpha = 0
+        addChild(way)
+        return way
+    }()
+    private var wayTarget: CGPoint?
+
+    /// What is on the castaway's mind, as pictures, with an arrow toward where to find it.
+    /// Fades by itself: a nudge, not an order.
+    func think(_ icons: [CGImage], toward spot: (x: Int, y: Int)?) {
+        let image = Bitmap.plate(icons, face: 0xffffff)
+        thought.texture = texture(image)
+        thought.size = CGSize(width: image.width, height: image.height)
+        wayTarget = spot.map { point($0.x, $0.y) }
+        let show = SKAction.sequence([.fadeIn(withDuration: 0.25), .wait(forDuration: 5), .fadeOut(withDuration: 0.6)])
+        thought.run(show, withKey: "think")
+        if wayTarget == nil { way.removeAllActions(); way.alpha = 0 } else { way.run(show, withKey: "think") }
+    }
+
+    func stopThinking() {
+        guard thought.alpha > 0 || way.alpha > 0 else { return }
+        thought.run(.fadeOut(withDuration: 0.2), withKey: "think")
+        way.run(.fadeOut(withDuration: 0.2), withKey: "think")
+    }
+
     private lazy var pointer: SKSpriteNode = {
         let pointer = SKSpriteNode(texture: stamp(Art.pointer))
         pointer.zPosition = 26550
@@ -886,6 +929,16 @@ final class IslandScene: SKScene {
         progressBack.position = CGPoint(x: hero.position.x, y: hero.position.y + 20)
         progressFill.position = CGPoint(x: hero.position.x - 8, y: hero.position.y + 20)
         prompt.position = CGPoint(x: onScreen(hero.position.x, width: prompt.size.width), y: hero.position.y + 18)
+        thought.position = CGPoint(x: onScreen(hero.position.x, width: thought.size.width), y: hero.position.y + (prompt.isHidden ? 22 : 42))
+        if let wayTarget {
+            let dx = wayTarget.x - hero.position.x, dy = wayTarget.y - hero.position.y
+            let angle = atan2(dy, dx)
+            // The arrow sits beside the thought and turns to point the way.
+            way.zRotation = angle
+            way.position = CGPoint(x: thought.position.x + thought.size.width / 2 + 7, y: thought.position.y + thought.size.height / 2)
+            // Close enough to see it yourself.
+            if hypot(dx, dy) < 30 { way.alpha = 0 }
+        }
         follow()
         tend()
         onTick?(delta)
