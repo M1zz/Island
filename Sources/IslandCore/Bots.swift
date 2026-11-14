@@ -69,6 +69,11 @@ public struct PlannerBot: Bot {
         }
         if !state.discovered.contains(.palmGrove) { plan.append(.explore(.palmGrove)) }
 
+        // Cold: get a fire going with whatever will burn.
+        if state.needs.warmth < 50 && !state.fireLitToday && state.actionsToday["makeFire", default: 0] < 2 {
+            plan.append(.makeFire)
+        }
+
         // 2. Build whatever is buildable, then push toward the summit
         plan += Self.buildOrder.map { Action.craft($0) }
         plan += [.explore(.jungle), .explore(.ridge), .explore(.summit)]

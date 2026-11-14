@@ -232,6 +232,7 @@ public struct GameEngine: Sendable {
             }
             success = rng.chance(clamp(probability, 0.05, 0.95))
             state.fireLitToday = success
+            if success { state.needs.warmth = min(100, state.needs.warmth + balance.fireWarmth) }
             messages.append(success ? "The fire caught. Tonight you eat cooked food." : "The fire died out.")
             messages += boil()
             messages += gainXP(15, .survival, difficulty: 1 + (raining ? 1 : 0), failed: !success, key: "makeFire")
@@ -270,6 +271,7 @@ public struct GameEngine: Sendable {
     private mutating func pass(hours: Int) -> [String] {
         state.hoursSpentToday += hours
         wear(hours: hours)
+        weather(hours: hours)
         return drink()
     }
 
@@ -277,6 +279,12 @@ public struct GameEngine: Sendable {
         let share = Double(hours) / Double(balance.hoursPerDay)
         state.needs.thirst = max(0, state.needs.thirst - balance.thirstDecayPerDay * share)
         state.needs.hunger = max(0, state.needs.hunger - balance.hungerDecayPerDay * share)
+    }
+
+    /// Out in the rain you lose heat by the hour; in dry weather you get it back.
+    private mutating func weather(hours: Int) {
+        let change = state.weather == .rain ? -balance.rainChillPerHour : balance.sunWarmthPerHour
+        state.needs.warmth = clamp(state.needs.warmth + change * Double(hours), 0, 100)
     }
 
     /// With a fire going and a pot to put on it, stream water is boiled and becomes clean.
@@ -338,6 +346,19 @@ public struct GameEngine: Sendable {
             fatigue += balance.rainSleepPenalty
             messages.append("Rain soaked you through the night.")
         }
+        // What is left of the daylight is spent at camp: drying off in the sun, or under a roof if there is one.
+        let idle = max(0, balance.hoursPerDay - state.hoursSpentToday)
+        if state.weather != .rain || !hasShelter { weather(hours: idle) }
+        // The night takes heat. A fire and a roof keep some of it in.
+        var chill = balance.nightChill
+        if state.fireLitToday { chill -= balance.fireNightWarmth }
+        if hasShelter { chill -= balance.shelterNightWarmth }
+        if state.weather == .rain && !hasShelter { chill += balance.rainNightChill }
+        state.needs.warmth = max(0, state.needs.warmth - max(0, chill))
+        if state.needs.warmth < balance.shiverThreshold {
+            fatigue += balance.shiverFatigue
+            messages.append("You shivered through the night.")
+        }
         state.needs.fatigue = clamp(fatigue, 0, 100)
 
         // The rest of the day's thirst and hunger, for the hours slept through.
@@ -365,13 +386,17 @@ public struct GameEngine: Sendable {
             state.needs.health -= balance.starvationDamage
             messages.append("You are starving.")
         }
-        if state.needs.thirst > 50 && state.needs.hunger > 50 && state.needs.fatigue < 50 {
+        if state.needs.warmth <= 0 {
+            state.needs.health -= balance.hypothermiaDamage
+            messages.append("The cold is in your bones.")
+        }
+        if state.needs.thirst > 50 && state.needs.hunger > 50 && state.needs.warmth > 50 && state.needs.fatigue < 50 {
             state.needs.health = min(100, state.needs.health + balance.dailyRegen)
         }
 
         if state.needs.health <= 0 {
             let cause: DeathCause = state.needs.thirst <= 0 ? .dehydration
-                : state.needs.hunger <= 0 ? .starvation : .injuries
+                : state.needs.hunger <= 0 ? .starvation : state.needs.warmth <= 0 ? .exposure : .injuries
             state.outcome = .died(day: state.day, cause: cause)
             messages.append("You did not survive the night (\(cause.rawValue)).")
             return messages

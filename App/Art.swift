@@ -1010,6 +1010,21 @@ enum Art {
         "kRRkkk......",
         ".kk.........",
     ])
+    /// Body heat.
+    static let thermometer = Bitmap.image([
+        "....kkkk....",
+        "...kwwwwk...",
+        "...kwwwwk.k.",
+        "...kwrrwk...",
+        "...kwrrwk.k.",
+        "...kwrrwk...",
+        "...kwrrwk.k.",
+        "..kwwrrwwk..",
+        ".kwrrrrrrwk.",
+        ".kwrrrrrrwk.",
+        "..kwrrrrwk..",
+        "...kkkkkk...",
+    ])
     /// Energy: how much is left in you.
     static let bolt = Bitmap.image([
         ".....kkkkk..",

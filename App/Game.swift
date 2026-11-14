@@ -359,6 +359,10 @@ final class Game: ObservableObject {
         if state.count(.food) == 0 || (state.needs.hunger < 50 && state.count(.food) < 2) {
             return ([Art.fruit], source(.food))
         }
+        if state.needs.warmth < 50, !state.fireLitToday {
+            return state.count(.wood) + state.count(.dryWood) > 0
+                ? ([Art.thermometer, Art.flame], IslandMap.fire) : ([Art.thermometer, Art.log], source(.wood))
+        }
         if !state.fireLitToday, state.hoursLeft <= 5 {
             return state.count(.wood) + state.count(.dryWood) > 0 ? ([Art.flame], IslandMap.fire) : ([Art.log, Art.flame], source(.wood))
         }
@@ -541,6 +545,8 @@ final class Game: ObservableObject {
         spent = spent.filter { engine.state.day - $0.value < regrowDays }
         scene.setSpent(Set(spent.keys))
         var notes = [[Art.sun, Art.number(engine.state.day)]]
+        // A cold night shows in the morning.
+        if engine.state.needs.warmth < engine.balance.shiverThreshold { notes.append([Art.thermometer, Art.cross]) }
         // Rain in the night: you drank, and a pot kept some.
         if engine.state.weather == .rain { notes.append([Art.rain, Art.drop] + (engine.state.has(.clayPot) ? [PixelFont.image("+3")] : [])) }
         scene.popup(notes)

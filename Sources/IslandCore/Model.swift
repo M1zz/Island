@@ -241,7 +241,7 @@ public enum Action: Hashable, Codable, Sendable {
 }
 
 public enum DeathCause: String, Codable, Sendable {
-    case dehydration, starvation, injuries
+    case dehydration, starvation, exposure, injuries
 }
 
 public enum Outcome: Codable, Sendable, Equatable {

@@ -26,6 +26,24 @@ public struct Balance: Codable, Sendable {
     public var sleepRecovery = 45.0
     public var shelterSleepRecovery = 65.0
     public var rainSleepPenalty = 20.0
+
+    // Body heat
+    /// Lost each waking hour out in the rain.
+    public var rainChillPerHour = 2.0
+    /// Regained each waking hour in dry weather.
+    public var sunWarmthPerHour = 4.0
+    /// Regained at once when a fire catches.
+    public var fireWarmth = 30.0
+    /// Lost over a night in the open, before anything that helps or hurts.
+    public var nightChill = 20.0
+    public var fireNightWarmth = 15.0
+    public var shelterNightWarmth = 10.0
+    /// Extra lost on a rainy night with no roof.
+    public var rainNightChill = 10.0
+    /// Below this you shiver instead of sleeping.
+    public var shiverThreshold = 40.0
+    public var shiverFatigue = 10.0
+    public var hypothermiaDamage = 20.0
     public var restRecoveryPerHour = 4.0
     /// Being up and about wears you down a little even when you do nothing. Only sleep restores.
     public var awakeFatiguePerHour = 1.0

@@ -2,6 +2,8 @@ public struct Needs: Codable, Sendable, Equatable {
     public var thirst = 100.0
     public var hunger = 100.0
     public var fatigue = 0.0
+    /// Body heat: 100 is warm and dry, 0 is hypothermia. Rain and bare nights take it; sun and fire give it back.
+    public var warmth = 100.0
     public var health = 100.0
 }
 

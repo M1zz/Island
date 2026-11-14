@@ -50,6 +50,16 @@ class Balance:
     sleepRecovery: float = 45.0
     shelterSleepRecovery: float = 65.0
     rainSleepPenalty: float = 20.0
+    rainChillPerHour: float = 2.0
+    sunWarmthPerHour: float = 4.0
+    fireWarmth: float = 30.0
+    nightChill: float = 20.0
+    fireNightWarmth: float = 15.0
+    shelterNightWarmth: float = 10.0
+    rainNightChill: float = 10.0
+    shiverThreshold: float = 40.0
+    shiverFatigue: float = 10.0
+    hypothermiaDamage: float = 20.0
     restRecoveryPerHour: float = 4.0
     fatiguePerLostHour: float = 20.0
     rainChance: float = 0.25
@@ -123,6 +133,7 @@ class State:
         self.hoursLeft = b.hoursPerDay
         self.weather = "clear"
         self.thirst, self.hunger, self.fatigue, self.health = 100.0, 100.0, 0.0, 100.0
+        self.warmth = 100.0
         self.inv = dict(cleanWater=3, food=3)
         self.xp = {}
         self.discovered = {"beach"}
@@ -278,6 +289,7 @@ class Engine:
             if raining: p -= 0.1 if "shelter" in s.structures else 0.25
             ok = self.rng.chance(clamp(p, 0.05, 0.95))
             s.fireLitToday = ok
+            if ok: s.warmth = min(100, s.warmth + b.fireWarmth)
             self.gain(15, "survival", 1 + (1 if raining else 0), not ok, "makeFire")
             self.boil()
         elif k == "lightSignal":
@@ -289,6 +301,7 @@ class Engine:
             self.gain(40, "survival", 3, not ok, "lightSignal")
         s.hoursSpentToday += cost
         self.wear(cost)
+        s.warmth = clamp(s.warmth + (-b.rainChillPerHour if s.weather == "rain" else b.sunWarmthPerHour) * cost, 0, 100)
         self.drink()
         if s.outcome is None and s.health <= 0:
             s.outcome = ("died", s.day, "injuries")
@@ -324,6 +337,15 @@ class Engine:
         f = s.fatigue - b.restRecoveryPerHour * s.hoursLeft
         f -= b.shelterSleepRecovery if shelter else b.sleepRecovery
         if s.weather == "rain" and not shelter: f += b.rainSleepPenalty
+        idle = max(0, b.hoursPerDay - s.hoursSpentToday)
+        if s.weather != "rain" or not shelter:
+            s.warmth = clamp(s.warmth + (-b.rainChillPerHour if s.weather == "rain" else b.sunWarmthPerHour) * idle, 0, 100)
+        chill = b.nightChill
+        if s.fireLitToday: chill -= b.fireNightWarmth
+        if shelter: chill -= b.shelterNightWarmth
+        if s.weather == "rain" and not shelter: chill += b.rainNightChill
+        s.warmth = max(0, s.warmth - max(0, chill))
+        if s.warmth < b.shiverThreshold: f += b.shiverFatigue
         s.fatigue = clamp(f, 0, 100)
         self.wear(max(0, b.hoursPerDay - s.hoursSpentToday))
         self.boil()
@@ -335,10 +357,11 @@ class Engine:
         if s.count("food") > b.foodSpoilThreshold: s.add("food", -1)
         if s.thirst <= 0: s.health -= b.dehydrationDamage
         if s.hunger <= 0: s.health -= b.starvationDamage
-        if s.thirst > 50 and s.hunger > 50 and s.fatigue < 50:
+        if s.warmth <= 0: s.health -= b.hypothermiaDamage
+        if s.thirst > 50 and s.hunger > 50 and s.warmth > 50 and s.fatigue < 50:
             s.health = min(100, s.health + b.dailyRegen)
         if s.health <= 0:
-            cause = "dehydration" if s.thirst <= 0 else ("starvation" if s.hunger <= 0 else "injuries")
+            cause = "dehydration" if s.thirst <= 0 else ("starvation" if s.hunger <= 0 else ("exposure" if s.warmth <= 0 else "injuries"))
             s.outcome = ("died", s.day, cause)
             return
         s.day += 1
@@ -405,6 +428,8 @@ def planner_bot(e, rng):
     if s.count("food") < 4:
         plan += [("gather", "food", r) for r in GATHER_SPOTS["food"]] + [("fish",)]
     if "palmGrove" not in s.discovered: plan.append(("explore", "palmGrove"))
+    if s.warmth < 50 and not s.fireLitToday and s.actionsToday.get("makeFire", 0) < 2:
+        plan.append(("makeFire",))
     plan += [("craft", r) for r in BUILD_ORDER]
     plan += [("explore", "jungle"), ("explore", "ridge"), ("explore", "summit")]
     if not s.fireLitToday and s.actionsToday.get("makeFire", 0) < 2 and s.count("dryWood") > 0:
