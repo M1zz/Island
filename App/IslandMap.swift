@@ -5,26 +5,28 @@ import IslandCore
 /// The island, generated once from fixed noise. Coordinates are art pixels, y down.
 enum IslandMap {
     /// What fits on screen at once.
-    static let viewWidth = 352
-    static let viewHeight = 212
-    /// The island is this many screens across.
-    static let scale = 8
-    static let width = viewWidth * scale
-    static let height = viewHeight * scale
+    static let viewWidth = 480
+    static let viewHeight = 270
+    /// The island's outline is designed on a 352 x 212 sketch and blown up this much.
+    static let scale = 20
+    static let width = 352 * scale
+    static let height = 212 * scale
 
     enum Prop {
-        case palm, tree, bush, rock, fern, shell, flowerPink, flowerWhite
+        case palm, tree, bush, rock, fern, shell
 
-        /// What you get by working on it. Flowers are only pretty.
-        var item: Item? {
+        /// What you get by working on it.
+        var item: Item {
             switch self {
             case .palm, .tree: .wood
             case .bush, .shell: .food
             case .fern: .fiber
             case .rock: .stone
-            case .flowerPink, .flowerWhite: nil
             }
         }
+
+        /// Giants: they block the way and you can walk behind them.
+        var isTall: Bool { self == .palm || self == .tree }
     }
 
     /// The middle of each region: where its name sits.
@@ -77,26 +79,28 @@ enum IslandMap {
 
     /// Which region every pixel belongs to; nil is sea.
     private static let grid: [Region?] = {
-        var grid: [Region?] = []
-        grid.reserveCapacity(width * height)
-        for y in 0..<height {
-            for x in 0..<width {
-                guard shore(x, y) < 1 else {
-                    grid.append(nil)
-                    continue
+        let anchors = Region.allCases.map { (region: $0, x: Double(anchor($0).x), y: Double(anchor($0).y)) }
+        let bend = 8.25 * Double(scale)
+        return [Region?](unsafeUninitializedCapacity: width * height) { buffer, count in
+            let cells = buffer.baseAddress!
+            // The island is big; every core helps draw it.
+            DispatchQueue.concurrentPerform(iterations: height) { y in
+                for x in 0..<width {
+                    guard shore(x, y) < 1 else {
+                        (cells + y * width + x).initialize(to: nil)
+                        continue
+                    }
+                    let sx = Double(x) / Double(scale), sy = Double(y) / Double(scale)
+                    let wx = Double(x) + (noise(sx / 16, sy / 16 + 70) - 0.5) * bend
+                        + (noise(Double(x) / 10, Double(y) / 10 + 300) - 0.5) * 8
+                    let wy = Double(y) + (noise(sx / 16 + 90, sy / 16) - 0.5) * bend
+                        + (noise(Double(x) / 10 + 300, Double(y) / 10) - 0.5) * 8
+                    let nearest = anchors.min { hypot(wx - $0.x, wy - $0.y) < hypot(wx - $1.x, wy - $1.y) }!
+                    (cells + y * width + x).initialize(to: nearest.region)
                 }
-                let sx = Double(x) / Double(scale), sy = Double(y) / Double(scale)
-                let wx = Double(x) + (noise(sx / 16, sy / 16 + 70) - 0.5) * 66
-                    + (noise(Double(x) / 10, Double(y) / 10 + 300) - 0.5) * 8
-                let wy = Double(y) + (noise(sx / 16 + 90, sy / 16) - 0.5) * 66
-                    + (noise(Double(x) / 10 + 300, Double(y) / 10) - 0.5) * 8
-                grid.append(Region.allCases.min { a, b in
-                    hypot(wx - Double(anchor(a).x), wy - Double(anchor(a).y))
-                        < hypot(wx - Double(anchor(b).x), wy - Double(anchor(b).y))
-                })
             }
+            count = width * height
         }
-        return grid
     }()
 
     static func region(x: Int, y: Int) -> Region? {
@@ -104,7 +108,7 @@ enum IslandMap {
         return grid[y * width + x]
     }
 
-    private static let streamSteps = 1800
+    private static let streamSteps = 225 * scale
     private static let streamPoints: [(Double, Double)] = (0...streamSteps).map { step in
         let t = Double(step) / Double(streamSteps)
         return ((270 + 22 * t + 8 * sin(t * 6.5) + 2 * sin(t * 31)) * Double(scale), (60 + 114 * t) * Double(scale))
@@ -116,6 +120,9 @@ enum IslandMap {
         let middle = Int((Double(y) - first) / (last - first) * Double(streamSteps))
         var best = Double.infinity
         let nearest = min(max(middle, 0), streamSteps)
+        // Far off to the side: no need to measure precisely.
+        let aside = abs(Double(x) - streamPoints[nearest].0)
+        if aside > 110 { return aside - 60 }
         for index in max(0, nearest - 90)...min(streamSteps, nearest + 90) {
             best = min(best, hypot(Double(x) - streamPoints[index].0, Double(y) - streamPoints[index].1))
         }
@@ -124,16 +131,8 @@ enum IslandMap {
 
     // MARK: Terrain
 
-    static let terrain: CGImage = {
-        var pixels: [UInt32?] = []
-        pixels.reserveCapacity(width * height)
-        for y in 0..<height {
-            for x in 0..<width {
-                pixels.append(color(x, y))
-            }
-        }
-        return Bitmap.image(width: width, height: height, pixels: pixels)
-    }()
+    /// Made fresh each time: far too big to keep a second copy around.
+    static func terrain() -> CGImage { Bitmap.image(width: width, height: height, color: color) }
 
     private static func color(_ x: Int, _ y: Int) -> UInt32 {
         let d = shore(x, y)
@@ -144,16 +143,16 @@ enum IslandMap {
 
         guard let region = region(x: x, y: y) else {
             if d < 1.004 { return 0xf2fbf8 }
-            if d < 1.025 { return 0x8fd8e4 }
-            if d < 1.07 { return 0x6cc0de }
+            if d < 1.025 { return 0x86bfc6 }
+            if d < 1.07 { return 0x5fa3c0 }
             let dash = y % 5 == 0 && (x + y * 3) % 19 < 4 && speck < 170
-            return dash ? 0x62b0e0 : 0x4a9bdc
+            return dash ? 0x4d8cba : 0x3f7fae
         }
 
         let rocky = region == .ridge || region == .summit
         let stream = streamDistance(x, y)
-        if stream < 9 { return speck > 240 ? 0xc8f0f4 : stream < 6 ? 0x5fb4e4 : 0x78c4ea }
-        if stream < 12 { return rocky ? 0x7d736b : 0xd9c285 }
+        if stream < 16 { return speck > 240 ? 0xc8f0f4 : stream < 11 ? 0x5fb4e4 : 0x78c4ea }
+        if stream < 20 { return rocky ? 0x7d736b : 0xd9c285 }
 
         if rocky {
             if d > 0.93 { return shade(0x7d736b, 0x6f655e, 0x8d827a) }
@@ -161,14 +160,14 @@ enum IslandMap {
                 ? shade(0xa89d90, 0x968b7f, 0xbbb0a4)
                 : shade(0xb9afa4, 0xa69c92, 0xcfc6bc)
         }
-        if d > 0.985 { return 0xdcc284 }
-        if region == .beach || d > 0.87 { return shade(0xf2dfa2, 0xe6cd88, 0xf9ecbd) }
-        // A soft grass rim where the sand begins.
-        if d > 0.85 { return shade(0xa9da6a, 0x9aca5c, 0xbce67c) }
+        if d > 0.985 { return 0xc9b48a }
+        if region == .beach || d > 0.87 { return shade(0xe3d3ac, 0xd2c097, 0xeee1c0) }
+        // Dry scrub where the sand begins.
+        if d > 0.85 { return shade(0xbdb878, 0xaba666, 0xcdc98c) }
         switch region {
-        case .palmGrove: return shade(0x9ad45e, 0x86c24f, 0xb0e070)
-        case .stream: return shade(0x7fc653, 0x6fb548, 0x96d466)
-        default: return shade(0x56a64a, 0x47923f, 0x66b656)
+        case .palmGrove: return shade(0xa9ae62, 0x979c55, 0xbcc077)
+        case .stream: return shade(0x8fa85a, 0x7f974e, 0xa2b96c)
+        default: return shade(0x5f8a4a, 0x527a41, 0x6d9855)
         }
     }
 
@@ -208,47 +207,71 @@ enum IslandMap {
         var buckets: [Int: [Int]] = [:]
         func bucket(_ x: Int, _ y: Int) -> Int { (y / 16) * 1000 + x / 16 }
 
-        func isFree(_ prop: Prop, _ x: Int, _ y: Int) -> Bool {
-            guard shore(x, y) < 0.975, streamDistance(x, y) > 20 else { return false }
-            for spot in [start, fire, bed, signal] where hypot(Double(x - spot.x), Double(y - spot.y)) < 18 { return false }
+        // Trunks of the giants, in cells wider than the room any of them needs.
+        var trunks: [Int: [(x: Int, y: Int)]] = [:]
+        func room(_ region: Region) -> Double {
+            switch region {
+            case .jungle: 70
+            case .palmGrove: 110
+            case .stream: 170
+            default: 260
+            }
+        }
+
+        func isFree(_ prop: Prop, _ x: Int, _ y: Int, _ region: Region) -> Bool {
+            let tall = prop.isTall
+            guard shore(x, y) < (tall ? 0.96 : 0.975), streamDistance(x, y) > (tall ? 38 : 28) else { return false }
+            for spot in [start, fire, bed, signal] {
+                // A giant just south of camp would bury it under its crown.
+                if tall, abs(x - spot.x) < 95, y > spot.y - 24, y < spot.y + 175 { return false }
+                if hypot(Double(x - spot.x), Double(y - spot.y)) < 18 { return false }
+            }
+            if tall {
+                for row in (y / 260 - 1)...(y / 260 + 1) {
+                    for column in (x / 260 - 1)...(x / 260 + 1) {
+                        for trunk in trunks[row * 1000 + column] ?? []
+                        where hypot(Double(x - trunk.x), Double(y - trunk.y)) < room(region) { return false }
+                    }
+                }
+            }
             // Keep the mountain clear.
             if abs(x - peak.x) < 30 * scale, y < peak.y + 6, y > peak.y - 42 * scale { return false }
-            let small = prop.item == nil
-            let spacing: Double = small ? 5 : prop == .tree ? 10 : 12
+            let spacing = 12.0
             for dy in -1...1 {
                 for dx in -1...1 {
                     for index in buckets[bucket(x + dx * 16, y + dy * 16)] ?? []
-                    where hypot(Double(x - placed[index].x), Double(y - placed[index].y)) < spacing { return false }
+                    where hypot(Double(x - placed[index].x), Double(y - placed[index].y))
+                        < (tall || placed[index].prop.isTall ? 15 : spacing) { return false }
                 }
             }
             return true
         }
         func add(_ prop: Prop, _ x: Int, _ y: Int, _ region: Region) {
+            if prop.isTall { trunks[(y / 260) * 1000 + x / 260, default: []].append((x, y)) }
             buckets[bucket(x, y), default: []].append(placed.count)
             placed.append((prop, x, y, region))
         }
 
-        for _ in 0..<150_000 {
+        for _ in 0..<420_000 {
             let x = Int(roll() * Double(width)), y = Int(roll() * Double(height))
             let chance = roll()
             guard let region = region(x: x, y: y) else { continue }
             let prop: Prop?
             switch region {
             case .beach:
-                prop = chance < 0.05 ? .palm : chance < 0.09 ? .shell : nil
+                prop = chance < 0.05 ? .palm : chance < 0.056 ? .shell : chance < 0.064 ? .rock : nil
             case .palmGrove:
-                prop = chance < 0.45 ? .palm : chance < 0.60 ? .bush : chance < 0.78 ? .fern : chance < 0.9 ? .flowerPink : nil
+                prop = chance < 0.45 ? .palm : chance < 0.47 ? .bush : chance < 0.50 ? .fern : chance < 0.51 ? .rock : nil
             case .stream:
-                prop = chance < 0.15 ? .tree : chance < 0.33 ? .bush : chance < 0.48 ? .fern
-                    : chance < 0.58 ? .rock : chance < 0.8 ? .flowerWhite : nil
+                prop = chance < 0.15 ? .tree : chance < 0.17 ? .bush : chance < 0.19 ? .fern : chance < 0.23 ? .rock : nil
             case .jungle:
-                prop = chance < 0.65 ? .tree : chance < 0.80 ? .bush : chance < 0.93 ? .fern : nil
+                prop = chance < 0.65 ? .tree : chance < 0.68 ? .bush : chance < 0.71 ? .fern : nil
             case .ridge:
-                prop = chance < 0.40 ? .rock : chance < 0.48 ? .tree : nil
+                prop = chance < 0.08 ? .rock : chance < 0.16 ? .tree : nil
             case .summit:
-                prop = chance < 0.30 ? .rock : nil
+                prop = chance < 0.06 ? .rock : nil
             }
-            guard let prop, isFree(prop, x, y) else { continue }
+            guard let prop, isFree(prop, x, y, region) else { continue }
             add(prop, x, y, region)
         }
 
@@ -267,7 +290,7 @@ enum IslandMap {
                 while have < 8, tries < 60_000 {
                     tries += 1
                     let x = Int(roll() * Double(width)), y = Int(roll() * Double(height))
-                    guard IslandMap.region(x: x, y: y) == region, isFree(prop, x, y) else { continue }
+                    guard IslandMap.region(x: x, y: y) == region, isFree(prop, x, y, region) else { continue }
                     add(prop, x, y, region)
                     have += 1
                 }
@@ -275,4 +298,20 @@ enum IslandMap {
         }
         return placed
     }()
+
+    private static let trunks: [Int: [(x: Int, y: Int)]] = Dictionary(
+        grouping: props.filter(\.prop.isTall).map { (x: $0.x, y: $0.y) }, by: { ($0.y / 32) * 1000 + $0.x / 32 })
+
+    /// Whether a giant's trunk stands on this pixel.
+    static func blocked(_ x: Int, _ y: Int) -> Bool {
+        for row in (y / 32 - 1)...(y / 32 + 1) {
+            for column in (x / 32 - 1)...(x / 32 + 1) {
+                for trunk in trunks[row * 1000 + column] ?? [] {
+                    let dx = Double(x - trunk.x) / 10, dy = Double(y - trunk.y + 3) / 5
+                    if dx * dx + dy * dy < 1 { return true }
+                }
+            }
+        }
+        return false
+    }
 }

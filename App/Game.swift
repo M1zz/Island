@@ -4,8 +4,27 @@ import IslandCore
 /// What Space would do where the castaway stands.
 struct Prompt: Equatable {
     let action: Action
-    let enabled: Bool
-    let text: String
+    let hours: Int
+    /// What is in the way, if Space would do nothing.
+    let blocker: Blocker?
+
+    enum Blocker: Equatable {
+        case level(Int), noPath, rescueList, wood, daylight
+    }
+
+    var enabled: Bool { blocker == nil }
+
+    /// The prompt as pictures: the key and what it does, or the thing and what it still needs.
+    var icons: [CGImage] {
+        switch blocker {
+        case nil: [Art.spaceKey, action.icon] + (hours > 0 ? [Art.hourglass, Art.number(hours)] : [])
+        case let .level(level): [action.icon, Art.cross, Art.icon(Skill.exploration), Art.up, Art.number(level)]
+        case .noPath: [action.icon, Art.cross]
+        case .rescueList: [action.icon, Art.cross, Art.todo]
+        case .wood: [action.icon, Art.cross, Art.log]
+        case .daylight: [action.icon, Art.cross, Art.hourglass]
+        }
+    }
 }
 
 /// Runs `GameEngine` in real time: you walk the island yourself, hours pass on their own,
@@ -18,7 +37,6 @@ final class Game: ObservableObject {
     @Published private(set) var prompt: Prompt?
     @Published private(set) var working: Action?
     @Published private(set) var sleeping = false
-    @Published private(set) var clockText = ""
     @Published private(set) var isNight = false
     @Published private(set) var saveError: String?
     @Published var crafting = false
@@ -113,13 +131,9 @@ final class Game: ObservableObject {
                 paused.toggle()
             }
         case Key.map:
-            crafting = false
-            mapOpen.toggle()
+            toggleMap()
         case Key.craft:
-            if case .idle = phase, !paused {
-                mapOpen = false
-                crafting.toggle()
-            }
+            toggleCrafting()
         case _ where Key.act.contains(key):
             if paused {
                 paused = false
@@ -137,6 +151,18 @@ final class Game: ObservableObject {
         return true
     }
 
+    func toggleCrafting() {
+        guard case .idle = phase, !paused, !engine.state.isOver else { return }
+        mapOpen = false
+        crafting.toggle()
+    }
+
+    func toggleMap() {
+        guard !engine.state.isOver else { return }
+        crafting = false
+        mapOpen.toggle()
+    }
+
     func craft(_ recipe: Recipe) {
         guard canCraft(recipe) else { return }
         crafting = false
@@ -151,7 +177,7 @@ final class Game: ObservableObject {
         }
         if case .gather = action, let nearProp { scene.shake(prop: nearProp) }
         working = action
-        scene.setPrompt(nil, enabled: true)
+        scene.setPrompt(nil)
         phase = .working(action, from: clock, elapsed: 0, duration: 0.9 + Double(engine.hours(for: action)) * 0.8)
     }
 
@@ -172,7 +198,7 @@ final class Game: ObservableObject {
 
     private func canWalk(_ x: Int, _ y: Int) -> Bool {
         guard let region = IslandMap.region(x: x, y: y) else { return false }
-        return IslandMap.shore(x, y) < 0.996 && engine.state.discovered.contains(region)
+        return IslandMap.shore(x, y) < 0.996 && engine.state.discovered.contains(region) && !IslandMap.blocked(x, y)
     }
 
     /// The closest thing worth doing from where the castaway stands.
@@ -193,9 +219,11 @@ final class Game: ObservableObject {
         } else {
             var best = 13.0
             for (index, prop) in IslandMap.props.enumerated() {
-                guard let item = prop.prop.item, prop.region.yields.base(for: item) > 0,
+                let item = prop.prop.item
+                guard prop.region.yields.base(for: item) > 0,
                       state.discovered.contains(prop.region) else { continue }
-                let d = distance(prop.x, prop.y - 2)
+                // A giant's trunk keeps you at arm's length.
+                let d = distance(prop.x, prop.y - 2) - (prop.prop.isTall ? 8 : 0)
                 if d < best {
                     best = d
                     nearProp = index
@@ -203,7 +231,7 @@ final class Game: ObservableObject {
                 }
             }
         }
-        if found == nil, state.discovered.contains(.stream), IslandMap.streamDistance(spot.x, spot.y) < 15 {
+        if found == nil, state.discovered.contains(.stream), IslandMap.streamDistance(spot.x, spot.y) < 22 {
             found = .fetchWater
         }
         if found == nil {
@@ -222,30 +250,28 @@ final class Game: ObservableObject {
         }
 
         let next = found.map { action in
-            let enabled = engine.canPerform(action)
-            let hours = action == .sleep ? "" : " \(engine.hours(for: action))h"
-            return Prompt(action: action, enabled: enabled,
-                          text: enabled ? "Space: \(action.title)\(hours)" : why(action) ?? action.title)
+            Prompt(action: action, hours: action == .sleep ? 0 : engine.hours(for: action),
+                   blocker: engine.canPerform(action) ? nil : blocker(action))
         }
         if next != prompt { prompt = next }
-        scene.setPrompt(next?.text, enabled: next?.enabled ?? true)
+        scene.setPrompt(next)
     }
 
     /// Why an action is locked right now.
-    private func why(_ action: Action) -> String? {
+    private func blocker(_ action: Action) -> Prompt.Blocker {
         let state = engine.state
         switch action {
         case let .explore(region):
-            if engine.level(.exploration) < region.requiredLevel { return "Needs Exploration Lv \(region.requiredLevel)" }
-            if !state.discovered.contains(where: { $0.neighbors.contains(region) }) { return "No way through from here" }
+            if engine.level(.exploration) < region.requiredLevel { return .level(region.requiredLevel) }
+            if !state.discovered.contains(where: { $0.neighbors.contains(region) }) { return .noPath }
         case .lightSignal:
-            if !engine.canPerform(action) { return "Finish the rescue list first" }
+            return .rescueList
         case .makeFire:
-            if state.count(.wood) + state.count(.dryWood) == 0 { return "A fire needs wood" }
+            if state.count(.wood) + state.count(.dryWood) == 0 { return .wood }
         default:
             break
         }
-        return engine.hours(for: action) > state.hoursLeft ? "Not enough daylight" : nil
+        return .daylight
     }
 
     // MARK: Time
@@ -315,9 +341,6 @@ final class Game: ObservableObject {
 
     private func showClock() {
         scene.setSky(hour: clock, raining: engine.state.weather == .rain)
-        let minutes = Int(clock * 6) * 10
-        let text = String(format: "%02d:%02d", (minutes / 60) % 24, minutes % 60)
-        if text != clockText { clockText = text }
         let night = clock >= 18.5 || clock < 5.5
         if night != isNight { isNight = night }
     }
@@ -328,17 +351,21 @@ final class Game: ObservableObject {
         working = nil
         scene.setProgress(nil)
 
-        var notes: [String] = []
+        var notes: [[CGImage]] = []
         for item in Item.allCases {
             let gained = engine.state.count(item) - before.state.count(item)
-            if gained > 0 { notes.append("+\(gained) \(item.displayName.lowercased())") }
+            if gained > 0 { notes.append([Art.icon(item), PixelFont.image("+\(gained)")]) }
         }
-        if engine.state.discovered.count > before.state.discovered.count { notes.append("Discovered!") }
-        if engine.state.structures.count > before.state.structures.count { notes.append("Built!") }
-        if engine.state.fireLitToday, !before.state.fireLitToday { notes.append("Fire lit!") }
-        if !result.success { notes.append("No luck...") }
+        for region in Region.allCases where engine.state.discovered.contains(region) && !before.state.discovered.contains(region) {
+            notes.append([Art.compass, Art.icon(region), Art.check])
+        }
+        for structure in Structure.allCases where engine.state.has(structure) && !before.state.has(structure) {
+            notes.append([Art.picture(structure), Art.check])
+        }
+        if engine.state.fireLitToday, !before.state.fireLitToday { notes.append([Art.flame, Art.check]) }
+        if !result.success { notes.append([action.icon, Art.cross]) }
         for skill in Skill.allCases where engine.level(skill) > before.level(skill) {
-            notes.append("\(skill.displayName) Lv \(engine.level(skill))!")
+            notes.append([Art.icon(skill), Art.up, Art.number(engine.level(skill))])
         }
         scene.popup(notes)
 
@@ -352,7 +379,7 @@ final class Game: ObservableObject {
         crafting = false
         idle = 0
         prompt = nil
-        scene.setPrompt(nil, enabled: true)
+        scene.setPrompt(nil)
         scene.move(dx: 0, dy: 0, seconds: 0, canWalk: canWalk)
         phase = .dusk(from: clock, elapsed: 0)
     }
@@ -373,20 +400,20 @@ final class Game: ObservableObject {
         scene.setAsleep(false)
         sleeping = false
         phase = .idle
-        scene.popup(["Day \(engine.state.day)"])
+        scene.popup([[Art.sun, Art.number(engine.state.day)]])
         refresh()
     }
 
     private func finish() {
         phase = .over
         prompt = nil
-        scene.setPrompt(nil, enabled: true)
+        scene.setPrompt(nil)
         guard let outcome = engine.state.outcome else { return }
         journal.record(engine.state)
         do {
             try journal.save(to: journalURL)
         } catch {
-            saveError = "Could not save the journal."
+            saveError = error.localizedDescription
         }
         scene.finish(outcome)
         showClock()
@@ -401,41 +428,15 @@ final class Game: ObservableObject {
 // MARK: - How actions read on screen
 
 extension Action {
-    var title: String {
-        switch self {
-        case let .gather(item, _): "Gather \(item.displayName.lowercased())"
-        case .fish: "Go fishing"
-        case .fetchWater: "Fetch water"
-        case .explore: "Explore"
-        case let .craft(recipe): recipe.displayName
-        case .makeFire: "Make a fire"
-        case .lightSignal: "Light the signal"
-        case .rest: "Rest"
-        case .sleep: "Sleep till morning"
-        }
-    }
-
-    var doing: String {
-        switch self {
-        case .gather: "Gathering..."
-        case .fish: "Fishing..."
-        case .fetchWater: "Fetching water..."
-        case .explore: "Exploring..."
-        case .craft: "Crafting..."
-        case .makeFire: "Making a fire..."
-        case .lightSignal: "Lighting the signal..."
-        case .rest, .sleep: "Resting..."
-        }
-    }
-
     var icon: CGImage {
         switch self {
         case let .gather(item, _): Art.icon(item)
-        case .fish: Art.fruit
+        case .fish: Art.fish
         case .fetchWater: Art.drop
         case .explore: Art.compass
-        case let .craft(recipe): recipe == .dryWood ? Art.dryLog : Art.log
-        case .makeFire, .lightSignal: Art.flame
+        case .craft: Art.hammer
+        case .makeFire: Art.flame
+        case .lightSignal: Art.ship
         case .rest, .sleep: Art.moon
         }
     }

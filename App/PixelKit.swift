@@ -42,6 +42,27 @@ enum Bitmap {
             decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
     }
 
+    /// A big opaque picture computed pixel by pixel, on every core.
+    static func image(width: Int, height: Int, color: @escaping (Int, Int) -> UInt32) -> CGImage {
+        let bytes = UnsafeMutablePointer<UInt8>.allocate(capacity: width * height * 4)
+        DispatchQueue.concurrentPerform(iterations: height) { y in
+            for x in 0..<width {
+                let pixel = color(x, y), at = bytes + (y * width + x) * 4
+                at[0] = UInt8(pixel >> 16 & 0xff)
+                at[1] = UInt8(pixel >> 8 & 0xff)
+                at[2] = UInt8(pixel & 0xff)
+                at[3] = 255
+            }
+        }
+        let data = Data(bytesNoCopy: bytes, count: width * height * 4, deallocator: .custom { pointer, _ in pointer.deallocate() })
+        return CGImage(
+            width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: CGDataProvider(data: data as CFData)!,
+            decode: nil, shouldInterpolate: false, intent: .defaultIntent)!
+    }
+
     /// Draws a sprite from rows of palette characters ('.' is transparent).
     static func image(_ rows: [String]) -> CGImage {
         let width = rows.map(\.count).max() ?? 1
@@ -51,6 +72,33 @@ enum Bitmap {
             pixels += colors + Array(repeating: nil, count: width - colors.count)
         }
         return image(width: width, height: rows.count, pixels: pixels)
+    }
+    /// Pictures in a row on a little notched panel: the game's way of saying something without words.
+    static func plate(_ images: [CGImage], face: UInt32 = Ink.panel, border: UInt32 = Ink.border, padding: Int = 3) -> CGImage {
+        let gap = 2
+        let inner = images.map(\.width).reduce(0, +) + gap * (images.count - 1)
+        let width = inner + padding * 2 + 2, height = (images.map(\.height).max() ?? 1) + padding * 2 + 2
+        let context = CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.interpolationQuality = .none
+        func fill(_ hex: UInt32, inset: Int) {
+            context.setFillColor(CGColor(srgbRed: CGFloat(hex >> 16 & 0xff) / 255, green: CGFloat(hex >> 8 & 0xff) / 255,
+                                         blue: CGFloat(hex & 0xff) / 255, alpha: 1))
+            context.fill([
+                CGRect(x: inset + 1, y: inset, width: width - inset * 2 - 2, height: height - inset * 2),
+                CGRect(x: inset, y: inset + 1, width: width - inset * 2, height: height - inset * 2 - 2),
+            ])
+        }
+        fill(border, inset: 0)
+        fill(face, inset: 1)
+        var x = padding + 1
+        for image in images {
+            context.draw(image, in: CGRect(x: x, y: (height - image.height) / 2, width: image.width, height: image.height))
+            x += image.width + gap
+        }
+        return context.makeImage()!
     }
 }
 

@@ -16,8 +16,9 @@ final class IslandScene: SKScene {
     private let progressBack = SKSpriteNode(color: NSColor(white: 0.15, alpha: 1), size: CGSize(width: 18, height: 4))
     private let progressFill = SKSpriteNode(color: NSColor(red: 0.55, green: 0.85, blue: 0.3, alpha: 1), size: CGSize(width: 16, height: 2))
     private let prompt = SKSpriteNode()
-    private var promptText = ""
+    private var shown: Prompt?
     private var propNodes: [SKSpriteNode] = []
+    private var giants: [SKSpriteNode] = []
     private let fire = SKSpriteNode()
     private let glow = SKSpriteNode()
     private let signalFire = SKSpriteNode()
@@ -30,6 +31,9 @@ final class IslandScene: SKScene {
     private var labels: [Region: (name: SKSpriteNode, unknown: SKSpriteNode)] = [:]
     private let mapLayer = SKNode()
     private var mapOpen = false
+    /// How far the camera pulls back to fit the whole island.
+    private let zoom = max(CGFloat(IslandMap.width) / CGFloat(IslandMap.viewWidth),
+                           CGFloat(IslandMap.height) / CGFloat(IslandMap.viewHeight))
     private var built: [Structure: SKSpriteNode] = [:]
 
     private var fireLit = false
@@ -43,7 +47,7 @@ final class IslandScene: SKScene {
     override init(size: CGSize) {
         super.init(size: size)
         scaleMode = .aspectFit
-        backgroundColor = NSColor(red: 0.29, green: 0.61, blue: 0.86, alpha: 1)
+        backgroundColor = NSColor(red: 0.247, green: 0.498, blue: 0.682, alpha: 1)
         build()
     }
 
@@ -94,7 +98,7 @@ final class IslandScene: SKScene {
     // MARK: Building the world
 
     private func build() {
-        let terrain = SKSpriteNode(texture: texture(IslandMap.terrain))
+        let terrain = SKSpriteNode(texture: texture(IslandMap.terrain()))
         terrain.position = CGPoint(x: mapWidth / 2, y: mapHeight / 2)
         terrain.zPosition = -1000
         addChild(terrain)
@@ -109,7 +113,7 @@ final class IslandScene: SKScene {
 
         // Waves that come and go.
         var waves = 0
-        while waves < 700 {
+        while waves < 1600 {
             let x = Int(roll() * mapWidth), y = Int(roll() * mapHeight)
             guard IslandMap.shore(x, y) > 1.16 else { continue }
             waves += 1
@@ -128,19 +132,29 @@ final class IslandScene: SKScene {
             addChild(wave)
         }
 
-        for prop in IslandMap.props {
+        for (index, prop) in IslandMap.props.enumerated() {
             let image: CGImage
             switch prop.prop {
-            case .palm: image = Art.palm
-            case .tree: image = Art.tree
+            case .palm: image = Art.palms[index % Art.palms.count]
+            case .tree:
+                // The high ground is all dead wood, and the stream bank has its share.
+                let dead = prop.region == .ridge || (prop.region == .stream && index % 3 == 0)
+                image = dead ? Art.snags[index % Art.snags.count] : Art.trees[index % Art.trees.count]
             case .bush: image = Art.bush
             case .rock: image = Art.rock
             case .fern: image = Art.fern
-            case .flowerPink: image = Art.flowerPink
-            case .flowerWhite: image = Art.flowerWhite
             case .shell: image = Art.shell
             }
-            propNodes.append(place(SKSpriteNode(), image, x: prop.x, y: prop.y))
+            let node = place(SKSpriteNode(), image, x: prop.x, y: prop.y)
+            propNodes.append(node)
+            if prop.prop.isTall {
+                giants.append(node)
+                let shade = SKSpriteNode(texture: texture(Art.shade))
+                shade.alpha = 0.22
+                shade.position = CGPoint(x: 6, y: 2)
+                shade.zPosition = -CGFloat(prop.y) - 400
+                node.addChild(shade)
+            }
         }
 
         place(SKSpriteNode(), Art.mountain, x: IslandMap.peak.x, y: IslandMap.peak.y)
@@ -191,7 +205,7 @@ final class IslandScene: SKScene {
 
             let group = SKNode()
             var spots: [(Int, Int)] = []
-            while spots.count < 70 {
+            while spots.count < 160 {
                 let x = Int(roll() * mapWidth), y = Int(roll() * mapHeight)
                 if IslandMap.region(x: x, y: y) == region { spots.append((x, y)) }
             }
@@ -214,10 +228,11 @@ final class IslandScene: SKScene {
         mapLayer.alpha = 0
         addChild(mapLayer)
         for region in Region.allCases {
-            let name = SKSpriteNode(texture: texture(PixelFont.image(region.displayName, color: 0xffffff, outline: 0x3b2416)))
-            let unknown = SKSpriteNode(texture: texture(PixelFont.image("?", color: 0xf9d65c, outline: 0x3b2416)))
-            name.setScale(CGFloat(IslandMap.scale))
-            unknown.setScale(CGFloat(IslandMap.scale) * 2)
+            let yields = Item.allCases.filter { region.yields.base(for: $0) > 0 }.map(Art.icon)
+            let name = SKSpriteNode(texture: texture(Bitmap.plate([Art.icon(region)] + yields)))
+            let unknown = SKSpriteNode(texture: texture(Art.question))
+            name.setScale(zoom)
+            unknown.setScale(zoom * 2)
             name.position = spot(region)
             unknown.position = spot(region)
             labels[region] = (name, unknown)
@@ -311,9 +326,10 @@ final class IslandScene: SKScene {
         workOrigin = nil
         follow()
         zzz.isHidden = true
-        setPrompt(nil, enabled: true)
+        setPrompt(nil)
         ship.removeAction(forKey: "sail")
         ship.isHidden = true
+        giants.forEach { $0.alpha = 1 }
         signalFire.isHidden = true
         setProgress(nil)
         for cover in Array(clouds.values) + Array(fog.values) as [SKNode] {
@@ -389,7 +405,7 @@ final class IslandScene: SKScene {
             return
         }
         let length = hypot(dx, dy)
-        let step = CGFloat(seconds) * 95
+        let step = CGFloat(seconds) * 105
         var position = hero.position
         // Each axis on its own, so you slide along a shore instead of sticking to it.
         let nextX = position.x + dx / length * step
@@ -403,14 +419,13 @@ final class IslandScene: SKScene {
         }
     }
 
-    /// The line floating over the castaway: what Space would do here.
-    func setPrompt(_ text: String?, enabled: Bool) {
-        let key = (text ?? "") + (enabled ? "+" : "-")
-        guard key != promptText else { return }
-        promptText = key
-        prompt.isHidden = text == nil
-        guard let text else { return }
-        let image = PixelFont.image(text, color: enabled ? 0xfff3a8 : 0xd0d0d0, outline: 0x3b2416)
+    /// The bubble floating over the castaway: what Space would do here.
+    func setPrompt(_ next: Prompt?) {
+        guard next != shown else { return }
+        shown = next
+        prompt.isHidden = next == nil
+        guard let next else { return }
+        let image = Bitmap.plate(next.icons, face: next.enabled ? Ink.panel : 0xc9c0b6)
         prompt.texture = texture(image)
         prompt.size = CGSize(width: image.width, height: image.height)
     }
@@ -418,7 +433,9 @@ final class IslandScene: SKScene {
     /// Gives a tree or rock a little shake while it is being worked on.
     func shake(prop index: Int) {
         let node = propNodes[index]
-        let wiggle = SKAction.sequence([.rotate(toAngle: 0.07, duration: 0.09), .rotate(toAngle: -0.07, duration: 0.18), .rotate(toAngle: 0, duration: 0.09)])
+        // A giant barely stirs.
+        let sway: CGFloat = IslandMap.props[index].prop.isTall ? 0.012 : 0.07
+        let wiggle = SKAction.sequence([.rotate(toAngle: sway, duration: 0.09), .rotate(toAngle: -sway, duration: 0.18), .rotate(toAngle: 0, duration: 0.09)])
         node.run(.repeat(wiggle, count: 5))
     }
 
@@ -458,9 +475,10 @@ final class IslandScene: SKScene {
         zzz.position = CGPoint(x: hero.position.x + 6, y: hero.position.y + 14)
     }
 
-    func popup(_ texts: [String]) {
-        for (index, text) in texts.enumerated() {
-            let node = SKSpriteNode(texture: texture(PixelFont.image(text, color: 0xffffff, outline: 0x3b2416)))
+    /// Floats what just happened up from the castaway, one row of pictures at a time.
+    func popup(_ rows: [[CGImage]]) {
+        for (index, row) in rows.enumerated() {
+            let node = SKSpriteNode(texture: texture(Bitmap.plate(row, face: 0xfff3d6)))
             node.position = CGPoint(x: onScreen(hero.position.x, width: node.size.width), y: hero.position.y + 34)
             node.zPosition = 8000
             node.alpha = 0
@@ -481,9 +499,12 @@ final class IslandScene: SKScene {
         case .rescued:
             signalFire.isHidden = false
             ship.isHidden = false
-            let lane = mapHeight - 30
-            ship.position = CGPoint(x: CGFloat(IslandMap.peak.x) + 320, y: lane)
-            ship.run(.move(to: CGPoint(x: CGFloat(IslandMap.peak.x) + 110, y: lane), duration: 6), withKey: "sail")
+            // Seen from high up: the ship comes in across the northern sea.
+            setMap(true)
+            ship.setScale(zoom)
+            let lane = mapHeight - 70
+            ship.position = CGPoint(x: mapWidth + 80, y: lane)
+            ship.run(.move(to: CGPoint(x: CGFloat(IslandMap.peak.x) + 420, y: lane), duration: 6), withKey: "sail")
         case .storm:
             stormy = true
         case .died:
@@ -506,7 +527,6 @@ final class IslandScene: SKScene {
     func setMap(_ open: Bool) {
         guard open != mapOpen else { return }
         mapOpen = open
-        let zoom = CGFloat(IslandMap.scale)
         let seconds = 0.45
         let move: SKAction
         if open {
@@ -536,6 +556,16 @@ final class IslandScene: SKScene {
         let delta = min(0.1, currentTime - (lastUpdate ?? currentTime))
         lastUpdate = currentTime
         if !asleep, !mapOpen { hero.zPosition = mapHeight - hero.position.y }
+        // Walk behind a giant and it turns to glass, so you never lose yourself.
+        for giant in giants where !giant.isHidden {
+            let behind = !mapOpen && hero.position.y > giant.position.y && hero.position.y < giant.position.y + giant.size.height - 8
+                && abs(hero.position.x - giant.position.x) < giant.size.width / 2 - 6
+            let target: CGFloat = behind ? 0.35 : 1
+            if giant.alpha != target {
+                let next = giant.alpha + (target - giant.alpha) * min(1, CGFloat(delta) * 9)
+                giant.alpha = abs(next - target) < 0.02 ? target : next
+            }
+        }
         progressBack.position = CGPoint(x: hero.position.x, y: hero.position.y + 20)
         progressFill.position = CGPoint(x: hero.position.x - 8, y: hero.position.y + 20)
         prompt.position = CGPoint(x: onScreen(hero.position.x, width: prompt.size.width), y: hero.position.y + 18)
