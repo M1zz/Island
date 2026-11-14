@@ -21,6 +21,7 @@ targets:
         PRODUCT_NAME: Unknown Island
         PRODUCT_MODULE_NAME: IslandApp
         GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.games
         MARKETING_VERSION: "0.1"
         CURRENT_PROJECT_VERSION: "1"
