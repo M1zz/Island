@@ -989,6 +989,36 @@ enum Art {
         PixelFont.image("\(value)", color: color)
     }
 
+    /// Hunger: an empty stomach, not a piece of food.
+    static let stomach = Bitmap.image([
+        "...kk.......",
+        "..kppk......",
+        "..kppk.kkk..",
+        "..kppkkpppk.",
+        "..kpppppppRk",
+        ".kpppppppRRk",
+        ".kppppppRRRk",
+        ".kpppppRRRk.",
+        "..kppRRRkk..",
+        "kkkRRRkk....",
+        "kRRkkk......",
+        ".kk.........",
+    ])
+    /// Energy: how much is left in you.
+    static let bolt = Bitmap.image([
+        ".....kkkkk..",
+        "....kyyyyk..",
+        "...kyyyyk...",
+        "..kyyyyk....",
+        ".kyyyykkkk..",
+        "kyyyyyyyyk..",
+        "kkkkyyyyk...",
+        "...kyyyk....",
+        "..kyyyk.....",
+        "..kyyk......",
+        ".kyyk.......",
+        ".kkk........",
+    ])
     /// Foraging: a woven basket with something in it.
     static let basket = Bitmap.image([
         "....kkkk....",

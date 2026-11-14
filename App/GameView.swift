@@ -39,8 +39,8 @@ struct GameView: View {
         HStack(spacing: 5 * px) {
             gauge(Art.heart, state.needs.health, 0xe0564c)
             gauge(Art.drop, state.needs.thirst, 0x4a9bdc)
-            gauge(Art.fruit, state.needs.hunger, 0xf08a3c)
-            gauge(Art.moon, 100 - state.needs.fatigue, 0x9a7ad0)
+            gauge(Art.stomach, state.needs.hunger, 0xf08a3c)
+            gauge(Art.bolt, 100 - state.needs.fatigue, 0x7fc653)
         }
         .padding(4 * px)
         .pixelPanel()
