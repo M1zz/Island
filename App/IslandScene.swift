@@ -40,12 +40,19 @@ final class IslandScene: SKScene {
     private var stormy = false
     private var asleep = false
 
+    /// Which way the castaway is turned. Left is `side` mirrored.
+    private enum Facing { case front, back, side }
+    private var facing = Facing.front
+
     private lazy var idleTexture = texture(Art.heroIdle)
-    private lazy var stepTextures = [texture(Art.heroStepA), texture(Art.heroStepB)]
-    private lazy var sideIdleTexture = texture(Art.heroSideIdle)
-    private lazy var sideStepTextures = [texture(Art.heroSideStepA), texture(Art.heroSideIdle), texture(Art.heroSideStepB), texture(Art.heroSideIdle)]
-    /// Whether the castaway is turned to walk left or right, rather than facing us.
-    private var sideways = false
+    private lazy var standing: [Facing: SKTexture] = [
+        .front: idleTexture, .back: texture(Art.heroBackIdle), .side: texture(Art.heroSideIdle),
+    ]
+    private lazy var walking: [Facing: [SKTexture]] = [
+        .front: [texture(Art.heroStepA), texture(Art.heroStepB)],
+        .back: [texture(Art.heroBackStepA), texture(Art.heroBackStepB)],
+        .side: [texture(Art.heroSideStepA), texture(Art.heroSideIdle), texture(Art.heroSideStepB), texture(Art.heroSideIdle)],
+    ]
     private lazy var fireTextures = [texture(Art.fireA), texture(Art.fireB)]
 
     override init(size: CGSize) {
@@ -324,7 +331,7 @@ final class IslandScene: SKScene {
         hero.removeAllActions()
         hero.zRotation = 0
         hero.xScale = 1
-        sideways = false
+        facing = .front
         hero.texture = idleTexture
         hero.size = idleTexture.size()
         hero.position = point(IslandMap.start.x, IslandMap.start.y)
@@ -405,7 +412,7 @@ final class IslandScene: SKScene {
         guard !asleep, dx != 0 || dy != 0 else {
             if hero.action(forKey: "step") != nil {
                 hero.removeAction(forKey: "step")
-                hero.texture = sideways ? sideIdleTexture : idleTexture
+                hero.texture = standing[facing]
             }
             return
         }
@@ -419,9 +426,10 @@ final class IslandScene: SKScene {
         if canWalk(Int(position.x.rounded()), Int((mapHeight - nextY).rounded())) { position.y = nextY }
         hero.position = position
         if dx != 0 { hero.xScale = dx < 0 ? -1 : 1 }
-        if hero.action(forKey: "step") == nil || sideways != (dx != 0) {
-            sideways = dx != 0
-            hero.run(.repeatForever(.animate(with: sideways ? sideStepTextures : stepTextures, timePerFrame: sideways ? 0.09 : 0.11)), withKey: "step")
+        let turned: Facing = dx != 0 ? .side : dy > 0 ? .back : .front
+        if hero.action(forKey: "step") == nil || turned != facing {
+            facing = turned
+            hero.run(.repeatForever(.animate(with: walking[facing]!, timePerFrame: facing == .side ? 0.09 : 0.11)), withKey: "step")
         }
     }
 
@@ -459,7 +467,8 @@ final class IslandScene: SKScene {
         progressFill.xScale = CGFloat(min(max(value, 0), 1))
         hero.removeAction(forKey: "step")
         if hero.action(forKey: "work") == nil, !asleep {
-            hero.texture = idleTexture
+            // Keep facing whatever is being worked on.
+            hero.texture = standing[facing]
             workOrigin = hero.position
             let hop = SKAction.sequence([.moveBy(x: 0, y: 2, duration: 0.14), .moveBy(x: 0, y: -2, duration: 0.14), .wait(forDuration: 0.12)])
             hero.run(.repeatForever(hop), withKey: "work")
@@ -469,7 +478,7 @@ final class IslandScene: SKScene {
     func setAsleep(_ sleeping: Bool) {
         guard sleeping != asleep else { return }
         asleep = sleeping
-        sideways = false
+        facing = .front
         hero.removeAllActions()
         hero.xScale = 1
         let image = sleeping ? Art.heroAsleep : Art.heroIdle

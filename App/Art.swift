@@ -45,6 +45,37 @@ enum Art {
         "..kkk..ksk..",
         ".......kkk..",
     ])
+    // Walking away from us: the back of the hat and hair, no face.
+    private static let heroBackTop = [
+        "...kkkkkk...",
+        "..keeeeeek..",
+        ".keeeeeeeek.",
+        "kEEEEEEEEEEk",
+        ".khhhhhhhhk.",
+        ".khhhhhhhhk.",
+        ".kshhhhhhsk.",
+        "..khhhhhhk..",
+        ".kkrrrrrrkk.",
+        "ksrrrrrrrrsk",
+        "kskrrRRrrksk",
+        ".kkbbbbbbkk.",
+    ]
+    static let heroBackIdle = Bitmap.image(heroBackTop + [
+        "..kbbkkbbk..",
+        "..ksk..ksk..",
+        "..kkk..kkk..",
+    ])
+    static let heroBackStepA = Bitmap.image(heroBackTop + [
+        "..kbbkkbbk..",
+        "..ksk..kkk..",
+        "..kkk.......",
+    ])
+    static let heroBackStepB = Bitmap.image(heroBackTop + [
+        "..kbbkkbbk..",
+        "..kkk..ksk..",
+        ".......kkk..",
+    ])
+
     // Seen from the side, facing right; flipped for left.
     private static let heroSideHead = [
         "...kkkkkk...",
