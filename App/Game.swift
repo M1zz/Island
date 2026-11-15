@@ -234,7 +234,7 @@ final class Game: ObservableObject {
 
     private func canWalk(_ x: Int, _ y: Int) -> Bool {
         guard let region = IslandMap.region(x: x, y: y) else { return false }
-        guard IslandMap.shore(x, y) < 0.9985, engine.state.discovered.contains(region), !IslandMap.blocked(x, y) else { return false }
+        guard IslandMap.depth(x, y) > 9, engine.state.discovered.contains(region), !IslandMap.blocked(x, y), !IslandMap.walled(x, y) else { return false }
         // Rocks, brush and driftwood are in the way until they are carried off.
         return !IslandMap.props(around: x, y, reach: 6).contains { prop in
             prop.kind.isSolid && spent[prop.id] == nil && hypot(Double(x - prop.x), Double(y - prop.y + 2)) < 5
@@ -288,7 +288,7 @@ final class Game: ObservableObject {
                 }
             }
         }
-        if found == nil, here == .beach, IslandMap.shore(spot.x, spot.y) > 0.99 {
+        if found == nil, here == .beach, IslandMap.depth(spot.x, spot.y) < 60 {
             found = .fish
         }
 
@@ -408,7 +408,7 @@ final class Game: ObservableObject {
             switch step {
             case let .find(region):
                 guard !state.discovered.contains(region) else { continue }
-                return ([Art.compass, Art.icon(region)], IslandMap.anchor(region))
+                return ([Art.compass, Art.icon(region)], IslandMap.gate(into: region, from: state.discovered, near: spot))
             case let .make(recipe):
                 guard case let .structure(structure) = recipe.spec.output, !state.has(structure) else { continue }
                 let spec = recipe.spec

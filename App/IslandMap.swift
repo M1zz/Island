@@ -68,17 +68,15 @@ enum IslandMap {
     /// The middle of each region: where its sign sits on the map.
     static func anchor(_ region: Region) -> (x: Int, y: Int) {
         let small: (x: Int, y: Int) = switch region {
-        case .beach: (112, 158)
-        case .palmGrove: (72, 104)
-        case .stream: (250, 146)
-        case .jungle: (168, 100)
-        case .ridge: (250, 72)
-        case .summit: (188, 54)
+        case .beach: (170, 150)
+        case .palmGrove: (70, 100)
+        case .stream: (278, 122)
+        case .jungle: (165, 104)
+        case .ridge: (215, 88)
+        case .summit: (215, 56)
         }
         return (small.x * scale, small.y * scale)
     }
-
-    private static let anchors = Region.allCases.map { (region: $0, x: Double(anchor($0).x), y: Double(anchor($0).y)) }
 
     static let start = (x: anchor(.beach).x, y: anchor(.beach).y + 8)
     static let fire = (x: start.x + 22, y: start.y + 2)
@@ -106,36 +104,174 @@ enum IslandMap {
         return top + (bottom - top) * sy
     }
 
-    /// Below 1 is land, above is sea.
-    static func shore(_ x: Int, _ y: Int) -> Double {
+    private static func span(_ px: Double, _ py: Double, _ ax: Double, _ ay: Double, _ bx: Double, _ by: Double) -> Double {
+        let dx = bx - ax, dy = by - ay, length = dx * dx + dy * dy
+        let t = length == 0 ? 0 : min(1, max(0, ((px - ax) * dx + (py - ay) * dy) / length))
+        return hypot(px - ax - dx * t, py - ay - dy * t)
+    }
+
+    /// The island is drawn on purpose, not rolled: rounded limbs on the sketch, melted together.
+    /// A mountain in the north, a peninsula of palms to the west, a river valley to the east,
+    /// and a bay in the south where a sandbar runs out to a wreck.
+    private static let limbs: [(ax: Double, ay: Double, bx: Double, by: Double, r: Double)] = [
+        (215, 58, 215, 58, 46),     // the mountain
+        (165, 95, 165, 95, 46),     // the jungle heart
+        (130, 82, 130, 82, 34),
+        (130, 124, 232, 118, 14),
+        (238, 105, 238, 105, 14),
+        (218, 104, 218, 104, 14),
+        (42, 98, 108, 102, 28),     // the palm peninsula
+        (44, 112, 40, 150, 13),     // and its cape
+        (95, 128, 125, 150, 14),    // the shore path round to the bay
+        (125, 142, 228, 142, 22),   // the south shore
+        (135, 150, 122, 184, 11),   // the arms of the bay
+        (225, 150, 242, 184, 11),
+        (278, 115, 278, 115, 42),   // the river valley
+        (288, 152, 288, 152, 28),   // its delta
+        (300, 100, 325, 92, 10),    // and the east head
+        (170, 160, 170, 196, 7),    // the sandbar
+        (170, 196, 170, 196, 12),   // the wreck's islet
+    ]
+
+    /// How far inland a spot is, in pixels. Negative is out to sea.
+    static func depth(_ x: Int, _ y: Int) -> Double {
         let sx = Double(x) / Double(scale), sy = Double(y) / Double(scale)
-        let dx = (sx - 176) / 150, dy = (sy - 104) / 82
-        return sqrt(dx * dx + dy * dy)
-            + (noise(sx / 30, sy / 30) - 0.5) * 0.26
-            + (noise(sx / 9 + 40, sy / 9) - 0.5) * 0.06
-            + (noise(sx / 2.5, sy / 2.5 + 90) - 0.5) * 0.018
-            + (noise(Double(x) / 14, Double(y) / 14 + 500) - 0.5) * 0.003
+        var sum = 0.0
+        for limb in limbs { sum += exp((limb.r - span(sx, sy, limb.ax, limb.ay, limb.bx, limb.by)) / 5) }
+        let inland = 5 * log(sum)
+            + (noise(sx / 20 + 7, sy / 20) - 0.5) * 6
+            + (noise(sx / 9 + 40, sy / 9) - 0.5) * 3
+            + (noise(sx / 2.5, sy / 2.5 + 90) - 0.5) * 1.2
+            + (noise(Double(x) / 14, Double(y) / 14 + 500) - 0.5) * 0.3
+        return inland * Double(scale)
+    }
+
+    // MARK: Regions, walls and gates
+
+    /// What stands between two regions. You do not wander across: you find the way through.
+    enum Wall { case cliff, thicket, rocks }
+
+    /// A way through a wall.
+    struct Gate {
+        let from, to: Region
+        let x, y: Int
+        /// Which way it leads, as a unit step.
+        let dx, dy: Double
+    }
+
+    private static let crown = (x: 215.0, y: 56.0)
+    private static let summitRadius = 20.0, ridgeRadius = 44.0
+    /// Half a wall's thickness and half a gate's width, on the sketch.
+    private static let wallHalf = 0.55, gateHalf = 26.0
+
+    /// The lowlands are rounded territories; whatever they leave over is jungle.
+    private static let grove = (x: 55.0, y: 115.0, rx: 68.0, ry: 62.0)
+    private static let valley = (x: 295.0, y: 128.0, rx: 62.0, ry: 72.0)
+    private static let bay = (x: 170.0, y: 176.0, rx: 92.0, ry: 44.0)
+
+    /// Roughly how far inside a territory a spot is; negative is outside.
+    private static func inside(_ land: (x: Double, y: Double, rx: Double, ry: Double), _ wx: Double, _ wy: Double) -> Double {
+        (1 - hypot((wx - land.x) / land.rx, (wy - land.y) / land.ry)) * min(land.rx, land.ry)
+    }
+
+    /// Which region a spot falls in (land or not), how far the nearest border is on the sketch, and what lies across it.
+    private static func survey(_ x: Int, _ y: Int) -> (region: Region, edge: Double, across: Region) {
+        let sx = Double(x) / Double(scale), sy = Double(y) / Double(scale)
+        let wx = sx + (noise(sx / 16, sy / 16 + 70) - 0.5) * 7
+            + (noise(Double(x) / 40, Double(y) / 40 + 300) - 0.5) * 0.6
+        let wy = sy + (noise(sx / 16 + 90, sy / 16) - 0.5) * 7
+            + (noise(Double(x) / 40 + 300, Double(y) / 40) - 0.5) * 0.6
+        // The mountain is not a neat cone.
+        let r = hypot(wx - crown.x, wy - crown.y) + (noise(sx / 11 + 5, sy / 11 + 9) - 0.5) * 9
+        let inGrove = inside(grove, wx, wy), inValley = inside(valley, wx, wy), inBay = inside(bay, wx, wy)
+        let low: Region = inGrove > 0 ? .palmGrove : inValley > 0 ? .stream : inBay > 0 ? .beach : .jungle
+        if r < summitRadius { return (.summit, summitRadius - r, .ridge) }
+        if r < ridgeRadius {
+            return r - summitRadius < ridgeRadius - r ? (.ridge, r - summitRadius, .summit) : (.ridge, ridgeRadius - r, low)
+        }
+        var best = (region: low, edge: r - ridgeRadius, across: Region.ridge)
+        func consider(_ edge: Double, _ across: Region) {
+            if edge < best.edge { best = (low, edge, across) }
+        }
+        switch low {
+        case .palmGrove: consider(inGrove, inBay > -3 ? .beach : .jungle)
+        case .stream: consider(inValley, inBay > -3 ? .beach : .jungle)
+        default:
+            consider(-inGrove, .palmGrove)
+            consider(-inValley, .stream)
+            consider(abs(inBay), low == .beach ? .jungle : .beach)
+        }
+        return best
     }
 
     /// Which region a pixel belongs to; nil is sea.
     static func region(x: Int, y: Int) -> Region? {
-        guard x >= 0, y >= 0, x < width, y < height, shore(x, y) < 1 else { return nil }
-        let sx = Double(x) / Double(scale), sy = Double(y) / Double(scale)
-        let bend = 8.25 * Double(scale)
-        let wx = Double(x) + (noise(sx / 16, sy / 16 + 70) - 0.5) * bend
-            + (noise(Double(x) / 40, Double(y) / 40 + 300) - 0.5) * 60
-            + (noise(Double(x) / 10, Double(y) / 10 + 300) - 0.5) * 8
-        let wy = Double(y) + (noise(sx / 16 + 90, sy / 16) - 0.5) * bend
-            + (noise(Double(x) / 40 + 300, Double(y) / 40) - 0.5) * 60
-            + (noise(Double(x) / 10 + 300, Double(y) / 10) - 0.5) * 8
-        return anchors.min { hypot(wx - $0.x, wy - $0.y) < hypot(wx - $1.x, wy - $1.y) }!.region
+        guard x >= 0, y >= 0, x < width, y < height, depth(x, y) > 0 else { return nil }
+        return survey(x, y).region
     }
+
+    private static func rank(_ region: Region) -> Int { region == .summit ? 2 : region == .ridge ? 1 : 0 }
+
+    /// The ways through, each found by walking across the border from where it was sketched.
+    static let gates: [Gate] = [
+        gate(.jungle, .beach, 170, 124, 0, 1),          // the locked door behind camp
+        gate(.palmGrove, .beach, 100, 148, 1, 0),
+        gate(.beach, .stream, 227, 150, 1, 0),
+        gate(.palmGrove, .jungle, 110, 108, 1, 0),
+        gate(.jungle, .stream, 225, 115, 1, 0),
+        gate(.ridge, .jungle, 215 - 34 * 0.94, 56 + 34 * 0.34, -0.94, 0.34),
+        gate(.ridge, .stream, 215 + 34 * 0.82, 56 + 34 * 0.57, 0.82, 0.57),   // beside the falls
+        gate(.summit, .ridge, 215 + 12 * 0.5, 56 - 12 * 0.87, 0.5, -0.87),    // on the far side of the mountain
+    ]
+
+    private static func gate(_ from: Region, _ to: Region, _ sx: Double, _ sy: Double, _ dx: Double, _ dy: Double) -> Gate {
+        var last = (x: Int(sx * Double(scale)), y: Int(sy * Double(scale)))
+        for step in 1...400 {
+            let x = Int((sx + dx * Double(step) * 0.05) * Double(scale)), y = Int((sy + dy * Double(step) * 0.05) * Double(scale))
+            if survey(last.x, last.y).region == from, survey(x, y).region == to { return Gate(from: from, to: to, x: x, y: y, dx: dx, dy: dy) }
+            last = (x, y)
+        }
+        fatalError("no border between \(from) and \(to) where the gate was sketched")
+    }
+
+    /// The nearest way into a region from land already found.
+    static func gate(into region: Region, from known: Set<Region>, near spot: (x: Int, y: Int)) -> (x: Int, y: Int)? {
+        gates.filter { ($0.from == region && known.contains($0.to)) || ($0.to == region && known.contains($0.from)) }
+            .min { hypot(Double($0.x - spot.x), Double($0.y - spot.y)) < hypot(Double($1.x - spot.x), Double($1.y - spot.y)) }
+            .map { ($0.x, $0.y) }
+    }
+
+    /// What kind of wall stands on a pixel, if any, and how far up it (-1 foot ... 1 top).
+    private static func wall(_ x: Int, _ y: Int, _ spot: (region: Region, edge: Double, across: Region)) -> (kind: Wall, rise: Double)? {
+        guard spot.edge < wallHalf else { return nil }
+        for gate in gates {
+            // A doorway: narrow across, and long enough to pierce the wall wherever it runs thick.
+            let ox = Double(x - gate.x), oy = Double(y - gate.y)
+            if abs(ox * gate.dx + oy * gate.dy) < 130, abs(ox * gate.dy - oy * gate.dx) < gateHalf { return nil }
+        }
+        let high = max(rank(spot.region), rank(spot.across))
+        let kind: Wall = high > 0 ? .cliff : spot.region == .jungle || spot.across == .jungle ? .thicket : .rocks
+        return (kind, (rank(spot.region) == high && high > rank(spot.across) ? spot.edge : -spot.edge) / wallHalf)
+    }
+
+    /// Cliffs, thickets and rock spurs: no walking through.
+    static func walled(_ x: Int, _ y: Int) -> Bool {
+        wall(x, y, survey(x, y)) != nil
+    }
+
+    // MARK: Water
 
     private static let streamSteps = 225 * scale
     private static let streamPoints: [(Double, Double)] = (0...streamSteps).map { step in
         let t = Double(step) / Double(streamSteps)
-        return ((270 + 22 * t + 8 * sin(t * 6.5) + 2 * sin(t * 31)) * Double(scale), (60 + 114 * t) * Double(scale))
+        return ((233 + 52 * t + 8 * sin(t * 6.5) + 2 * sin(t * 31)) * Double(scale), (74 + 110 * t) * Double(scale))
     }
+
+    /// The pool under the falls, where the river comes off the mountain.
+    static let pool: (x: Int, y: Int) = {
+        let foot = streamPoints.first { survey(Int($0.0), Int($0.1)).region == .stream } ?? streamPoints[0]
+        return (Int(foot.0) + 12, Int(foot.1) + 70)
+    }()
 
     static func streamDistance(_ x: Int, _ y: Int) -> Double {
         // The river runs steadily downhill, so only the stretch level with `y` can be close.
@@ -145,7 +281,7 @@ enum IslandMap {
         // Far off to the side: no need to measure precisely.
         let aside = abs(Double(x) - streamPoints[nearest].0)
         if aside > 150 { return aside - 75 }
-        var best = Double.infinity
+        var best = hypot(Double(x - pool.x), Double(y - pool.y)) - 44
         for index in max(0, nearest - 120)...min(streamSteps, nearest + 120) {
             best = min(best, hypot(Double(x) - streamPoints[index].0, Double(y) - streamPoints[index].1))
         }
@@ -185,19 +321,20 @@ enum IslandMap {
     }
 
     private static func color(_ x: Int, _ y: Int, known: UInt8) -> UInt32 {
-        let d = shore(x, y)
+        let d = depth(x, y)
         let speck = Int(hash(x, y) & 0xff)
         func shade(_ base: UInt32, _ dark: UInt32, _ light: UInt32) -> UInt32 {
             speck < 30 ? dark : speck > 236 ? light : base
         }
 
-        guard let region = region(x: x, y: y) else {
-            if d < 1.0015 { return 0xf2fbf8 }
-            if d < 1.008 { return 0x86bfc6 }
-            if d < 1.022 { return 0x5fa3c0 }
+        guard d > 0, x >= 0, y >= 0, x < width, y < height else {
+            if d > -9 { return 0xf2fbf8 }
+            if d > -48 { return 0x86bfc6 }
+            if d > -130 { return 0x5fa3c0 }
             let dash = y % 5 == 0 && (x + y * 3) % 19 < 4 && speck < 170
             return dash ? 0x4d8cba : 0x3f7fae
         }
+        let spot = survey(x, y), region = spot.region
         guard known & bit(region) != 0 else {
             // Chunky on purpose: clouds do not need sharp edges.
             let puff = noise(Double(x / 4) / 5, Double(y / 4) / 3.2 + 200)
@@ -206,19 +343,35 @@ enum IslandMap {
 
         let rocky = region == .ridge || region == .summit
         let stream = streamDistance(x, y)
+        if let wall = wall(x, y, spot) {
+            switch wall.kind {
+            case .cliff:
+                // White water where the river comes over the edge.
+                if stream < 26 { return (x + speck / 40) % 3 == 0 ? 0xffffff : 0xbfe6f2 }
+                if wall.rise > 0.45 { return shade(0x9a9086, 0x8d827a, 0xb0a69b) }
+                if wall.rise < -0.6 { return 0x4a4340 }
+                return (y / 3 + Int(hash(x / 9, 0) & 3)) % 3 == 0 ? 0x5e554f : shade(0x6f655e, 0x655c55, 0x7d736b)
+            case .thicket:
+                let knot = Int(hash(x / 3, y / 3) & 0xff)
+                return knot < 20 ? 0x3b2416 : knot < 120 ? 0x1f4a2a : knot > 228 ? 0x487f3f : 0x2c5e34
+            case .rocks:
+                let lump = Int(hash(x / 7, y / 6) & 0xff)
+                return speck < 24 ? 0x4a4340 : lump < 80 ? 0x6f655e : lump > 200 ? 0x8d827a : 0x7d736b
+            }
+        }
         if stream < 26 { return speck > 240 ? 0xc8f0f4 : stream < 19 ? 0x5fb4e4 : 0x78c4ea }
         if stream < 32 { return rocky ? 0x7d736b : 0xd9c285 }
 
         if rocky {
-            if d > 0.975 { return shade(0x7d736b, 0x6f655e, 0x8d827a) }
+            if d < 150 { return shade(0x7d736b, 0x6f655e, 0x8d827a) }
             return region == .ridge
                 ? shade(0xa89d90, 0x968b7f, 0xbbb0a4)
                 : shade(0xb9afa4, 0xa69c92, 0xcfc6bc)
         }
-        if d > 0.9975 { return 0xc9b48a }
-        if region == .beach || d > 0.955 { return shade(0xe3d3ac, 0xd2c097, 0xeee1c0) }
+        if d < 15 { return 0xc9b48a }
+        if region == .beach || d < 270 { return shade(0xe3d3ac, 0xd2c097, 0xeee1c0) }
         // Dry scrub where the sand begins.
-        if d > 0.945 { return shade(0xbdb878, 0xaba666, 0xcdc98c) }
+        if d < 330 { return shade(0xbdb878, 0xaba666, 0xcdc98c) }
         switch region {
         case .palmGrove: return shade(0xa9ae62, 0x979c55, 0xbcc077)
         case .stream: return shade(0x8fa85a, 0x7f974e, 0xa2b96c)
@@ -257,8 +410,23 @@ enum IslandMap {
     private static let giantCell = 72
     private static let smallCell = 26
 
+    /// Things do not grow evenly. Each place on the island is known for something.
+    private static let places: [(x: Double, y: Double, r: Double, kind: Kind, chance: Double)] = [
+        (170, 196, 12, .driftwood, 0.42),   // the wreck
+        (240, 178, 11, .shell, 0.34),       // the tide flats
+        (140, 78, 10, .fern, 0.40),         // the fern hollow
+        (42, 138, 16, .palm, 0.85),         // coconut point
+        (Double(pool.x) / Double(scale), Double(pool.y) / Double(scale) + 3, 5, .rock, 0.36),   // boulders under the falls
+    ]
+
+    private static func place(_ x: Int, _ y: Int, tall: Bool) -> (kind: Kind, chance: Double)? {
+        let sx = Double(x) / Double(scale), sy = Double(y) / Double(scale)
+        return places.first { $0.kind.isTall == tall && hypot(sx - $0.x, sy - $0.y) < $0.r }.map { ($0.kind, $0.chance) }
+    }
+
     private static func isClear(_ x: Int, _ y: Int, tall: Bool) -> Bool {
-        guard shore(x, y) < (tall ? 0.985 : 0.992), streamDistance(x, y) > (tall ? 52 : 40) else { return false }
+        guard depth(x, y) > (tall ? 90 : 48), streamDistance(x, y) > (tall ? 52 : 40) else { return false }
+        guard survey(x, y).edge > wallHalf + 0.25 else { return false }
         for spot in [start, fire, bed, signal] {
             // A giant just south of camp would bury it under its crown.
             if tall, abs(x - spot.x) < 95, y > spot.y - 24, y < spot.y + 175 { return false }
@@ -274,14 +442,20 @@ enum IslandMap {
         let y = cellY * giantCell + 14 + Int(h >> 8 & 0xff) * (giantCell - 28) / 256
         let chance = Double(h >> 16) / 65535
         guard let region = region(x: x, y: y) else { return nil }
+        // Forest comes in stands with glades between, not as an even sprinkle.
+        let stand = noise(Double(x) / 420, Double(y) / 420 + 33)
         let kind: Kind?
-        switch region {
-        case .beach: kind = chance < 0.05 ? .palm : nil
-        case .palmGrove: kind = chance < 0.36 ? .palm : nil
-        case .stream: kind = chance < 0.10 ? .tree : chance < 0.15 ? .snag : nil
-        case .jungle: kind = chance < 0.78 ? .tree : nil
-        case .ridge: kind = chance < 0.07 ? .snag : nil
-        case .summit: kind = nil
+        if let place = place(x, y, tall: true) {
+            kind = chance < place.chance ? place.kind : nil
+        } else {
+            switch region {
+            case .beach: kind = chance < 0.03 ? .palm : nil
+            case .palmGrove: kind = chance < (stand > 0.42 ? 0.5 : 0.08) ? .palm : nil
+            case .stream: kind = chance < (stand > 0.55 ? 0.3 : 0.04) ? .tree : chance > 0.95 ? .snag : nil
+            case .jungle: kind = chance < (stand > 0.3 ? 0.9 : 0.12) ? .tree : nil
+            case .ridge: kind = chance < 0.07 ? .snag : nil
+            case .summit: kind = nil
+            }
         }
         guard let kind, isClear(x, y, tall: true) else { return nil }
         return Prop(id: .init(tall: true, cellX: cellX, cellY: cellY), kind: kind, x: x, y: y, region: region)
@@ -290,19 +464,24 @@ enum IslandMap {
     private static func small(_ cellX: Int, _ cellY: Int) -> Prop? {
         let h = hash(cellX &- 1777, cellY &+ 6007)
         let chance = Double(h >> 16) / 65535
-        // Most ground is bare; say so before doing any real work.
-        guard chance < 0.11 else { return nil }
         let x = cellX * smallCell + 4 + Int(h & 0xff) * (smallCell - 8) / 256
         let y = cellY * smallCell + 4 + Int(h >> 8 & 0xff) * (smallCell - 8) / 256
+        let place = place(x, y, tall: false)
+        // Most ground is bare; say so before doing any real work.
+        guard chance < (place?.chance ?? 0.11) else { return nil }
         guard let region = region(x: x, y: y) else { return nil }
         let kind: Kind?
-        switch region {
-        case .beach: kind = chance < 0.012 ? .shell : chance < 0.03 ? .rock : chance < 0.045 ? .driftwood : nil
-        case .palmGrove: kind = chance < 0.03 ? .bush : chance < 0.08 ? .fern : chance < 0.09 ? .rock : chance < 0.11 ? .driftwood : nil
-        case .stream: kind = chance < 0.03 ? .bush : chance < 0.06 ? .fern : chance < 0.11 ? .rock : nil
-        case .jungle: kind = chance < 0.05 ? .bush : chance < 0.11 ? .fern : nil
-        case .ridge: kind = chance < 0.10 ? .rock : nil
-        case .summit: kind = chance < 0.06 ? .rock : nil
+        if let place {
+            kind = place.kind
+        } else {
+            switch region {
+            case .beach: kind = chance < 0.012 ? .shell : chance < 0.03 ? .rock : chance < 0.045 ? .driftwood : nil
+            case .palmGrove: kind = chance < 0.03 ? .bush : chance < 0.08 ? .fern : chance < 0.09 ? .rock : chance < 0.11 ? .driftwood : nil
+            case .stream: kind = chance < 0.03 ? .bush : chance < 0.06 ? .fern : chance < 0.11 ? .rock : nil
+            case .jungle: kind = chance < 0.05 ? .bush : chance < 0.11 ? .fern : nil
+            case .ridge: kind = chance < 0.10 ? .rock : nil
+            case .summit: kind = chance < 0.06 ? .rock : nil
+            }
         }
         guard let kind, isClear(x, y, tall: false) else { return nil }
         for trunk in giants(around: x, y, reach: 16) where hypot(Double(x - trunk.x), Double(y - trunk.y)) < 16 { return nil }

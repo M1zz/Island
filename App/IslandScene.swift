@@ -489,7 +489,7 @@ final class IslandScene: SKScene {
         } else if motion == .cast {
             // Face whichever side the sea is on.
             let spot = heroSpot
-            hero.xScale = IslandMap.shore(spot.x - 20, spot.y) > IslandMap.shore(spot.x + 20, spot.y) ? -1 : 1
+            hero.xScale = IslandMap.depth(spot.x - 20, spot.y) < IslandMap.depth(spot.x + 20, spot.y) ? -1 : 1
         }
         facing = .side
         let side = hero.xScale
@@ -851,7 +851,7 @@ final class IslandScene: SKScene {
             let x = square.x * IslandMap.chunk + Int(roll() * Double(IslandMap.chunk))
             let y = square.y * IslandMap.chunk + Int(roll() * Double(IslandMap.chunk))
             let wait = roll() * 4, pause = 1 + roll() * 3
-            guard IslandMap.shore(x, y) > 1.04 else { continue }
+            guard IslandMap.depth(x, y) < -240 else { continue }
             let wave = SKSpriteNode(texture: stamp(Art.wave))
             wave.position = point(x, y)
             wave.zPosition = -900
