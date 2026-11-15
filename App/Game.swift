@@ -100,6 +100,7 @@ final class Game: ObservableObject {
             guard let self, !event.modifierFlags.contains(.command) else { return event }
             return press(event.keyCode, down: event.type == .keyDown, repeated: event.isARepeat) ? nil : event
         }
+        scene.lost = journal.runs - journal.rescues
         refresh()
         scene.playIntro { [weak self] in self?.intro = false }
     }
@@ -225,6 +226,7 @@ final class Game: ObservableObject {
     func restart() {
         saveError = nil
         engine = GameEngine(seed: .random(in: 1...UInt64.max), journal: journal)
+        scene.lost = journal.runs - journal.rescues
         phase = .idle
         idle = 0
         working = nil

@@ -259,6 +259,22 @@ enum IslandMap {
         wall(x, y, survey(x, y)) != nil
     }
 
+    // MARK: Sights
+
+    /// Things put there to be wondered at from a distance.
+    static let wreck = (x: 166 * scale, y: 192 * scale)
+    static let flats = (x: 240 * scale, y: 178 * scale)
+    /// The dark way up to the summit.
+    static let cave: (x: Int, y: Int) = {
+        let gate = gates.first { $0.from == .summit }!
+        return (gate.x, gate.y)
+    }()
+    /// Where earlier castaways ended up, one for each who never left.
+    static let remains: [(x: Int, y: Int, region: Region)] = [
+        (140 * scale, 160 * scale, .beach), (70 * scale, 120 * scale, .palmGrove), (270 * scale, 140 * scale, .stream),
+        (212 * scale, 158 * scale, .beach), (150 * scale, 110 * scale, .jungle), (215 * scale, 90 * scale, .ridge),
+    ]
+
     // MARK: Water
 
     private static let streamSteps = 225 * scale

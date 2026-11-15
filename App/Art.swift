@@ -543,6 +543,48 @@ enum Art {
         "...TTTTTTTTTTTTTTTT...",
     ])
 
+    // MARK: Sights
+
+    /// What is left of a boat that did not make it either.
+    static let wreck = Bitmap.image([
+        "......................k....................",
+        ".....................kk....................",
+        "....................kTk....................",
+        "...................kTk.....................",
+        "......k...k...k...kTk......kkkkkkk.........",
+        ".....kTk.kTk.kTk.kTk....kkkttttttTkk.......",
+        "....kTk.kTk.kTk.kTkkkkkkttttttttttTTkk.....",
+        "...kTkkkTkkkTkkkTtttttttttnttttnttttTTk....",
+        "..kTttttttttttttttttttttttttttttttttTTTk...",
+        "...kTTttttttttttttTTTTttttttttttttTTTTk....",
+        "....kkTTTTTTTTTTTTkkkkTTTTTTTTTTTTTkkk.....",
+        "......kkkkkkkkkkkk....kkkkkkkkkkkkk........",
+    ])
+
+    /// Someone was here before.
+    static let bones = Bitmap.image([
+        "..vv............",
+        ".vkvk..v.v.v....",
+        ".vvvv.vvvvvvv.vv",
+        "..vv...v.v.v....",
+    ])
+
+    static let cave = Bitmap.image([
+        "........CCCCCCCCCC........",
+        "......CCcccccccccCCC......",
+        "....CCccckkkkkkkkcccCC....",
+        "...CccckkkkkkkkkkkkcccC...",
+        "..CcckkkkkkkkkkkkkkkkccC..",
+        "..CckkkkkkkkkkkkkkkkkkcC..",
+        ".CcckkkkkkkkkkkkkkkkkkccC.",
+        ".CckkkkkkkkkkkkkkkkkkkkcC.",
+        ".CckkkkkkkkkkkkkkkkkkkkcC.",
+        "CCckkkkkkkkkkkkkkkkkkkkcCC",
+    ])
+
+    static let gullA = Bitmap.image(["w...w", ".www."])
+    static let gullB = Bitmap.image([".....", "wwwww"])
+
     // MARK: World bits
 
     static let wave = Bitmap.image(["a.....", ".aaa.a"])

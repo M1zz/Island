@@ -25,6 +25,14 @@ final class IslandScene: SKScene {
     /// The ground near the camera, with what grows on it. The rest of the island is not drawn.
     private var squares: [Square: SKNode] = [:]
     private var known: Set<Region> = []
+    /// Things to wonder at, each hidden until its region is found. `order` counts the castaways lost before it shows.
+    private var sights: [(node: SKNode, region: Region, order: Int)] = []
+    /// How many castaways before this one never left.
+    var lost = 0 { didSet { showSights() } }
+
+    private func showSights() {
+        for sight in sights { sight.node.isHidden = !known.contains(sight.region) || sight.order > lost }
+    }
     private var propNodes: [IslandMap.Prop.ID: SKSpriteNode] = [:]
     /// Things already gathered and not grown back yet.
     private var spent: Set<IslandMap.Prop.ID> = []
@@ -146,6 +154,40 @@ final class IslandScene: SKScene {
         addChild(overview)
 
         place(SKSpriteNode(), Art.mountain, x: IslandMap.peak.x, y: IslandMap.peak.y)
+
+        // Sights: a wreck, a cave, old bones, gulls over the good spots, a sail that never turns.
+        sights.append((place(SKSpriteNode(), Art.wreck, x: IslandMap.wreck.x, y: IslandMap.wreck.y), .beach, 0))
+        sights.append((place(SKSpriteNode(), Art.cave, x: IslandMap.cave.x, y: IslandMap.cave.y + 6), .ridge, 0))
+        sights.forEach { $0.node.setScale(2) }
+        for (index, spot) in IslandMap.remains.enumerated() {
+            sights.append((place(SKSpriteNode(), Art.bones, x: spot.x, y: spot.y), spot.region, index + 1))
+        }
+        for spot in [IslandMap.wreck, IslandMap.flats] {
+            let flock = SKNode()
+            flock.position = point(spot.x, spot.y - 70)
+            flock.zPosition = 23000
+            addChild(flock)
+            sights.append((flock, .beach, 0))
+            for index in 0..<3 {
+                let gull = SKSpriteNode(texture: stamp(Art.gullA))
+                let reach = CGFloat(30 + index * 14)
+                let round = CGPath(ellipseIn: CGRect(x: -reach, y: -reach * 0.4, width: reach * 2, height: reach * 0.8), transform: nil)
+                gull.run(.repeatForever(.follow(round, asOffset: false, orientToPath: false, duration: 7 + Double(index) * 2.5)))
+                gull.run(.repeatForever(.animate(with: [stamp(Art.gullA), stamp(Art.gullB)], timePerFrame: 0.35)))
+                flock.addChild(gull)
+            }
+        }
+        // Far out past the wreck a ship goes by now and then. It does not see you.
+        let passing = SKSpriteNode(texture: stamp(Art.ship))
+        passing.alpha = 0.8
+        passing.zPosition = -800
+        passing.position = point(IslandMap.wreck.x + 1200, IslandMap.height - 70)
+        addChild(passing)
+        passing.run(.repeatForever(.sequence([
+            .wait(forDuration: 50),
+            .moveBy(x: -2400, y: 0, duration: 110),
+            .moveBy(x: 2400, y: 0, duration: 0),
+        ])))
 
         // Camp
         let bed = IslandMap.bed
@@ -338,6 +380,7 @@ final class IslandScene: SKScene {
             // The clouds lift: repaint the ground in view, and the map.
             if squares.isEmpty { tend(now: true) } else { squares.keys.forEach { paint($0) } }
             propNodes.values.forEach(show)
+            showSights()
             let mask = IslandMap.mask(known), step = Int(zoom / 2)
             painter.async { [weak self] in
                 let image = IslandMap.overview(known: mask, step: step)
