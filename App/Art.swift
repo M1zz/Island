@@ -16,7 +16,13 @@ enum Art {
 
     // MARK: Castaway
 
-    // Washed ashore with what was on their back: no hat, a torn shirt, ragged shorts, bare feet.
+    // Walked away from the crash in the suit they were wearing.
+
+    /// The castaway never takes the suit off: hair becomes helmet, shirt and shorts become shell.
+    private static func suited(_ rows: [String]) -> CGImage {
+        let shell: [Character: Character] = ["h": "w", "T": "v", "R": "v", "r": "w", "B": "c", "p": "s"]
+        return Bitmap.image(rows.map { String($0.map { shell[$0] ?? $0 }) })
+    }
 
     private static let heroTop = [
         "............",
@@ -32,17 +38,17 @@ enum Art {
         "kskRRkRRRksk",
         ".kkBBBBBBkk.",
     ]
-    static let heroIdle = Bitmap.image(heroTop + [
+    static let heroIdle = suited(heroTop + [
         "..kBBkkBBk..",
         "..ksk..ksk..",
         "..kkk..kkk..",
     ])
-    static let heroStepA = Bitmap.image(heroTop + [
+    static let heroStepA = suited(heroTop + [
         "..kBBkkBBk..",
         "..ksk..kkk..",
         "..kkk.......",
     ])
-    static let heroStepB = Bitmap.image(heroTop + [
+    static let heroStepB = suited(heroTop + [
         "..kBBkkBBk..",
         "..kkk..ksk..",
         ".......kkk..",
@@ -62,17 +68,17 @@ enum Art {
         "kskRRkRRRksk",
         ".kkBBBBBBkk.",
     ]
-    static let heroBackIdle = Bitmap.image(heroBackTop + [
+    static let heroBackIdle = suited(heroBackTop + [
         "..kBBkkBBk..",
         "..ksk..ksk..",
         "..kkk..kkk..",
     ])
-    static let heroBackStepA = Bitmap.image(heroBackTop + [
+    static let heroBackStepA = suited(heroBackTop + [
         "..kBBkkBBk..",
         "..ksk..kkk..",
         "..kkk.......",
     ])
-    static let heroBackStepB = Bitmap.image(heroBackTop + [
+    static let heroBackStepB = suited(heroBackTop + [
         "..kBBkkBBk..",
         "..kkk..ksk..",
         ".......kkk..",
@@ -89,7 +95,7 @@ enum Art {
         ".khhsssspsk.",
         "..khsssssk..",
     ]
-    static let heroSideIdle = Bitmap.image(heroSideHead + [
+    static let heroSideIdle = suited(heroSideHead + [
         "...kRRRRk...",
         "..kRRRsRk...",
         "..kRRRsRk...",
@@ -99,7 +105,7 @@ enum Art {
         "...kkkk.....",
     ])
     /// Legs apart, front arm swung forward.
-    static let heroSideStepA = Bitmap.image(heroSideHead + [
+    static let heroSideStepA = suited(heroSideHead + [
         "...kRRRRk...",
         "..kRRRRRsk..",
         "..kRRRRRkk..",
@@ -109,7 +115,7 @@ enum Art {
         ".kkk...kkkk.",
     ])
     /// Legs passing, arm swung back.
-    static let heroSideStepB = Bitmap.image(heroSideHead + [
+    static let heroSideStepB = suited(heroSideHead + [
         "...kRRRRk...",
         "..ksRRRRk...",
         "..kkRRRRk...",
@@ -120,7 +126,7 @@ enum Art {
     ])
     // Working poses, side on.
     /// Arm drawn back, about to strike.
-    static let heroArmUp = Bitmap.image(heroSideHead + [
+    static let heroArmUp = suited(heroSideHead + [
         "...kRRRRks..",
         "..kRRRRRk...",
         "..kRRRRRk...",
@@ -130,7 +136,7 @@ enum Art {
         "...kkkk.....",
     ])
     /// Arm brought down in front.
-    static let heroArmDown = Bitmap.image(heroSideHead + [
+    static let heroArmDown = suited(heroSideHead + [
         "...kRRRRk...",
         "..kRRRRRkk..",
         "..kRRRRRssk.",
@@ -141,13 +147,13 @@ enum Art {
     ])
     private static let heroLow = ["", "", "", ""] + heroSideHead
     /// Down on the heels, hands close.
-    static let heroCrouch = Bitmap.image(heroLow + [
+    static let heroCrouch = suited(heroLow + [
         "..kRRRRRk...",
         "..kRRRssk...",
         ".kkBBBBkk...",
     ])
     /// Down on the heels, reaching for the ground.
-    static let heroReach = Bitmap.image(heroLow + [
+    static let heroReach = suited(heroLow + [
         "..kRRRRRk...",
         "..kRRRRRsk..",
         ".kkBBBBkksk.",
@@ -159,7 +165,7 @@ enum Art {
         ".khhhhhThhk.",
     ]
     /// Shinning up a trunk, seen from behind: one hand high, then the other.
-    static let heroClimbA = Bitmap.image(heroBackHat + [
+    static let heroClimbA = suited(heroBackHat + [
         "skhhhhhhhhk.",
         "kkhhhhhhhhks",
         ".kshhhhhhskk",
@@ -172,7 +178,7 @@ enum Art {
         "..ksk..kkk..",
         "..kkk.......",
     ])
-    static let heroClimbB = Bitmap.image(heroBackHat + [
+    static let heroClimbB = suited(heroBackHat + [
         ".khhhhhhhhks",
         "skhhhhhhhhkk",
         "kkshhhhhhsk.",
@@ -222,9 +228,9 @@ enum Art {
 
     static let heroAsleep = Bitmap.image([
         "....kkkkkkkkkkk.",
-        ".kkkeeekrrrrrbbk",
-        "kEeeesskrrrrrbbk",
-        ".kkkeeekrrrrrbbk",
+        ".kkkwwwkvvvvvcck",
+        "kvwwwsskvvvvvcck",
+        ".kkkwwwkvvvvvcck",
         "....kkkkkkkkkkk.",
     ])
 

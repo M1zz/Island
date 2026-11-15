@@ -1,14 +1,14 @@
 import SpriteKit
 
-/// How the castaway got here, told without a word: a sail at dusk, a storm, a plank, a shore.
+/// How the castaway got here, told without a word: a ship over a dead world, a burning fall, a pod in the dust.
 /// Hangs on the camera and covers the whole view until it fades into the game.
 final class Intro: SKNode {
     private let view: CGSize
     private var finish: (() -> Void)?
     private let horizon: CGFloat = -20
 
-    private let sky = SKSpriteNode(color: Intro.color(0xc7a983), size: .zero)
-    private let sea = SKSpriteNode(color: Intro.color(0x3f6f8a), size: .zero)
+    private let sky = SKSpriteNode(color: Intro.color(0x0b1020), size: .zero)
+    private let sea = SKSpriteNode(color: Intro.color(0x7a3f33), size: .zero)
     private let sun = SKSpriteNode()
     private let land = SKSpriteNode()
     private let calm = SKNode(), rough = SKNode()
@@ -95,17 +95,25 @@ final class Intro: SKNode {
         var disc = [UInt32?](repeating: nil, count: 28 * 28)
         for index in disc.indices where hypot(Double(index % 28) - 13.5, Double(index / 28) - 13.5) < 13.6 { disc[index] = 0xf3dcab }
         picture(sun, Bitmap.image(width: 28, height: 28, pixels: disc), scale: 1)
-        sun.position = CGPoint(x: 120, y: horizon + 12)
+        sun.position = CGPoint(x: 120, y: horizon + 60)
+        sun.setScale(0.4)
+        // Stars, until the air starts to burn.
+        for index in 0..<50 {
+            let star = SKSpriteNode(color: .white, size: CGSize(width: 1, height: 1))
+            star.position = CGPoint(x: CGFloat(index * 131 % Int(view.width)) - view.width / 2, y: horizon + 8 + CGFloat(index * 53 % 140))
+            star.alpha = 0.4 + CGFloat(index % 5) * 0.12
+            star.zPosition = 0.5
+            star.name = "star"
+            addChild(star)
+        }
         sun.zPosition = 1
         addChild(sun)
 
-        // The island, far off: a low back and one palm.
+        // A mesa, far off.
         var shape = [UInt32?](repeating: nil, count: 64 * 24)
         for x in 0..<64 {
-            for y in (23 - Int(9 * sin(Double(x) / 63 * .pi)))..<24 { shape[y * 64 + x] = 0x55696b }
+            for y in (23 - Int(9 * sin(Double(x) / 63 * .pi)))..<24 { shape[y * 64 + x] = 0x7d4a3c }
         }
-        for (x, y) in [(40, 13), (40, 12), (41, 11), (41, 10), (41, 9), (42, 8), (42, 7), (39, 6), (40, 6), (41, 6), (43, 6), (44, 6), (45, 7),
-                       (38, 7), (37, 8), (42, 5), (41, 4), (43, 4), (44, 5), (46, 8), (40, 5)] { shape[y * 64 + x] = 0x55696b }
         picture(land, Bitmap.image(width: 64, height: 24, pixels: shape), scale: 2)
         land.anchorPoint = CGPoint(x: 0.5, y: 0)
         land.position = CGPoint(x: 150, y: horizon - 2)
@@ -119,29 +127,34 @@ final class Intro: SKNode {
         sea.zPosition = 3
         addChild(sea)
 
-        swell(in: calm, rise: 4, length: 48, body: 0x3a6884, foam: 0x7fa9bd, top: horizon - 18, seconds: 3.2, z: 4)
-        swell(in: calm, rise: 5, length: 64, body: 0x33607c, foam: 0x8fb6c6, top: horizon - 44, seconds: 2.4, z: 6)
-        swell(in: rough, rise: 20, length: 96, body: 0x16242f, foam: 0x5b7482, top: horizon + 2, seconds: 1.5, z: 4)
-        swell(in: rough, rise: 26, length: 120, body: 0x101b24, foam: 0x6f8794, top: horizon - 26, seconds: 1.1, z: 6)
+        swell(in: calm, rise: 4, length: 48, body: 0x86483a, foam: 0xa85f48, top: horizon - 18, seconds: 3.2, z: 4)
+        swell(in: calm, rise: 5, length: 64, body: 0x92503f, foam: 0xb86c50, top: horizon - 44, seconds: 2.4, z: 6)
+        swell(in: rough, rise: 14, length: 96, body: 0x5a2c26, foam: 0x8a4a3a, top: horizon - 6, seconds: 0.7, z: 4)
+        swell(in: rough, rise: 18, length: 120, body: 0x4a221e, foam: 0x9a5540, top: horizon - 34, seconds: 0.5, z: 6)
         rough.alpha = 0
         addChild(calm)
         addChild(rough)
 
-        picture(boat, Art.ship, scale: 3)
-        boat.anchorPoint = CGPoint(x: 0.5, y: 0.2)
-        berth.position = CGPoint(x: -170, y: horizon - 24)
+        let pod = Intro.drawing([
+            "....kkkkkk......",
+            "..kkwwwwwwkk....",
+            ".kwwwwAAwwwwkk..",
+            "kvwwwwAAwwwwwwko",
+            ".kvvwwwwwwwwkk..",
+            "..kkvvvvvvkk....",
+            "....kkkkkk......",
+        ], ["k": 0x2a2a33, "w": 0xdfe3e8, "v": 0xaab2bb, "A": 0x4a9bdc, "o": 0xf08a3c])
+        picture(boat, pod, scale: 3)
+        berth.position = CGPoint(x: -170, y: horizon + 70)
         berth.zPosition = 5
         berth.addChild(boat)
         addChild(berth)
         rock(boat, lift: 2, lean: 0.05, seconds: 1.1)
 
-        picture(drifter, Intro.drawing([
-            "......hhh.......",
-            ".....hsss...s...",
-            "wwwwwwsswwwwswww",
-            "WWWWWWWWWWWWWWWW",
-        ], ["h": 0x2a1c12, "s": 0xd9a877, "w": 0x9c6b3a, "W": 0x5c3a1e]), scale: 2)
-        drifter.position = CGPoint(x: -150, y: horizon - 34)
+        // The pod where it came down, nose in the dust.
+        picture(drifter, pod, scale: 3)
+        drifter.zRotation = -0.5
+        drifter.position = CGPoint(x: -10, y: horizon - 30)
         drifter.zPosition = 5
         drifter.alpha = 0
         addChild(drifter)
@@ -150,7 +163,7 @@ final class Intro: SKNode {
         rain.alpha = 0
         addChild(rain)
         for index in 0..<140 {
-            let drop = SKSpriteNode(color: NSColor(red: 0.8, green: 0.9, blue: 1, alpha: 0.7), size: CGSize(width: 1, height: 5))
+            let drop = SKSpriteNode(color: NSColor(red: 1, green: 0.7, blue: 0.35, alpha: 0.8), size: CGSize(width: 1, height: 5))
             let x = CGFloat((index * 197 + index * index * 31) % Int(view.width + 120)) - view.width / 2
             drop.run(.sequence([
                 .wait(forDuration: Double(index * 7 % 23) * 0.02),
@@ -181,17 +194,17 @@ final class Intro: SKNode {
             .run { [flash] in flash.run(.sequence([.fadeAlpha(to: 0.9, duration: 0.04), .fadeAlpha(to: 0.2, duration: 0.08),
                                                    .fadeAlpha(to: 0.7, duration: 0.04), .fadeOut(withDuration: 0.3)])) }
         }
-        // Dusk, a fair wind.
-        berth.run(.moveBy(x: 150, y: 0, duration: 7.4))
-        sun.run(.moveBy(x: 0, y: -16, duration: 4))
+        // High over a dead world, coming in.
+        berth.run(.moveBy(x: 150, y: -40, duration: 7.4))
         run(.sequence([
             .wait(forDuration: 3.4),
-            // The weather turns.
+            // The air catches fire around the hull.
             .run { [self] in
                 Sound.shared.play(.night)
-                tint(sky, 0x1b232d, 1.6)
-                tint(sea, 0x121c26, 1.6)
+                tint(sky, 0x5a2416, 1.6)
+                tint(sea, 0x4a221e, 1.6)
                 sun.run(.fadeOut(withDuration: 1))
+                children.filter { $0.name == "star" }.forEach { $0.run(.fadeOut(withDuration: 1)) }
                 calm.run(.fadeOut(withDuration: 1.6))
                 rough.run(.fadeIn(withDuration: 1.6))
                 rain.run(.fadeIn(withDuration: 1.2))
@@ -201,29 +214,28 @@ final class Intro: SKNode {
             .wait(forDuration: 1.8), lightning(),
             .wait(forDuration: 1.3), lightning(),
             .wait(forDuration: 0.9), lightning(),
-            // One wave too many.
+            // Too fast, too steep.
             .run { [self] in
                 Sound.shared.play(.lost)
                 boat.removeAction(forKey: "rock")
-                boat.run(.group([.rotate(toAngle: -2.2, duration: 1.1), .moveBy(x: 0, y: -46, duration: 1.3), .fadeOut(withDuration: 1.3)]))
+                boat.run(.group([.rotate(toAngle: -0.9, duration: 0.5), .moveBy(x: 90, y: -120, duration: 1.1), .fadeOut(withDuration: 1.2)]))
             },
             .wait(forDuration: 1.3),
             .run { [dark] in dark.run(.fadeIn(withDuration: 0.5)) },
             .wait(forDuration: 1.3),
-            // Grey morning, a plank, and land.
+            // Morning. Dust, the pod, and nobody else.
             .run { [self] in
                 Sound.shared.play(.morning)
                 sky.removeAllActions()
                 sea.removeAllActions()
-                sky.color = Intro.color(0xaebbbb)
-                sea.color = Intro.color(0x4f7d8d)
+                sky.color = Intro.color(0xc99a78)
+                sea.color = Intro.color(0x7a3f33)
                 rough.alpha = 0
                 rain.alpha = 0
                 calm.alpha = 1
                 land.alpha = 1
                 drifter.alpha = 1
-                rock(drifter, lift: 2, lean: 0.06, seconds: 0.9)
-                drifter.run(.moveBy(x: 210, y: 0, duration: 5.2))
+                calm.children.forEach { $0.removeAllActions() }
                 dark.run(.fadeOut(withDuration: 1))
             },
             .wait(forDuration: 4.4),
