@@ -316,7 +316,7 @@ final class IslandScene: SKScene {
         hero.size = idleTexture.size()
         hero.position = point(IslandMap.start.x, IslandMap.start.y)
         workOrigin = nil
-        follow()
+        follow(now: true)
         zzz.isHidden = true
         setPrompt(nil)
         point(at: nil)
@@ -900,12 +900,39 @@ final class IslandScene: SKScene {
 
     // MARK: Camera and time
 
-    /// Keeps the castaway in view without showing past the edge of the world.
-    private func follow() {
-        guard !mapOpen else { return }
-        eye.position = CGPoint(
-            x: min(max(hero.position.x, size.width / 2), mapWidth - size.width / 2).rounded(),
-            y: min(max(hero.position.y, size.height / 2), mapHeight - size.height / 2).rounded())
+    /// The island is seen one screen at a time: the view holds still while the castaway walks,
+    /// and slides over only when they step out of it. Screens overlap, so nobody walks under the gauges.
+    private var room: (x: Int, y: Int)?
+    private var roomSize: CGSize { CGSize(width: size.width - 144, height: size.height - 80) }
+
+    /// The middle of the screen the castaway is standing in.
+    private func home() -> CGPoint {
+        let step = roomSize
+        if let room {
+            // A little give, so pacing on the line does not flip the view back and forth.
+            let left = CGFloat(room.x) * step.width, bottom = CGFloat(room.y) * step.height
+            let stays = hero.position.x > left - 6 && hero.position.x < left + step.width + 6
+                && hero.position.y > bottom - 6 && hero.position.y < bottom + step.height + 6
+            if !stays { self.room = nil }
+        }
+        let room = room ?? (Int((hero.position.x / step.width).rounded(.down)), Int((hero.position.y / step.height).rounded(.down)))
+        self.room = room
+        return CGPoint(
+            x: min(max((CGFloat(room.x) + 0.5) * step.width, size.width / 2), mapWidth - size.width / 2).rounded(),
+            y: min(max((CGFloat(room.y) + 0.5) * step.height, size.height / 2), mapHeight - size.height / 2).rounded())
+    }
+
+    private func follow(now: Bool = false) {
+        guard !mapOpen, eye.action(forKey: "zoom") == nil else { return }
+        let before = room, target = home()
+        if now || before == nil {
+            eye.removeAction(forKey: "slide")
+            eye.position = target
+        } else if before! != room! {
+            let slide = SKAction.move(to: target, duration: 0.4)
+            slide.timingMode = .easeInEaseOut
+            eye.run(slide, withKey: "slide")
+        }
     }
 
     /// Pulls the camera back until the whole island fits, or drops back down to the castaway.
@@ -914,13 +941,11 @@ final class IslandScene: SKScene {
         mapOpen = open
         let seconds = 0.45
         let move: SKAction
+        eye.removeAction(forKey: "slide")
         if open {
             move = .group([.scale(to: zoom, duration: seconds), .move(to: CGPoint(x: mapWidth / 2, y: mapHeight / 2), duration: seconds)])
         } else {
-            let home = CGPoint(
-                x: min(max(hero.position.x, size.width / 2), mapWidth - size.width / 2).rounded(),
-                y: min(max(hero.position.y, size.height / 2), mapHeight - size.height / 2).rounded())
-            move = .group([.scale(to: 1, duration: seconds), .move(to: home, duration: seconds)])
+            move = .group([.scale(to: 1, duration: seconds), .move(to: home(), duration: seconds)])
         }
         move.timingMode = .easeInEaseOut
         eye.run(move, withKey: "zoom")
