@@ -44,6 +44,8 @@ final class Game: ObservableObject {
     @Published private(set) var saveError: String?
     @Published var crafting = false
     @Published var paused = false
+    /// Tab brings every panel up; otherwise the screen is left to the island.
+    @Published var showAll = false
     /// The opening is still playing: nothing ticks and any key skips it.
     @Published var intro = true
 
@@ -65,7 +67,7 @@ final class Game: ObservableObject {
         static let left: Set<UInt16> = [123, 0], right: Set<UInt16> = [124, 2]
         static let down: Set<UInt16> = [125, 1], up: Set<UInt16> = [126, 13]
         static let act: Set<UInt16> = [49, 14, 36]
-        static let craft: UInt16 = 8, pause: UInt16 = 35, escape: UInt16 = 53, map: UInt16 = 46
+        static let craft: UInt16 = 8, pause: UInt16 = 35, escape: UInt16 = 53, map: UInt16 = 46, panels: UInt16 = 48
         static let digits: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
     }
 
@@ -140,6 +142,8 @@ final class Game: ObservableObject {
             return true
         }
         switch key {
+        case Key.panels:
+            showAll.toggle()
         case Key.pause:
             paused.toggle()
         case Key.escape:

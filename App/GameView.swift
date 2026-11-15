@@ -17,8 +17,24 @@ struct GameView: View {
             .overlay { hud.opacity(game.intro ? 0 : 1).animation(.easeIn(duration: 0.5), value: game.intro) }
     }
 
+    /// The screen is the island. Panels come up only when they have something to say,
+    /// or all at once while Tab is held open.
+    private enum Panel { case bag, day, keys }
+    @State private var glimpses: [Panel: Date] = [:]
+
+    private func glimpse(_ panel: Panel, seconds: Double = 3.5) {
+        let until = Date().addingTimeInterval(seconds)
+        glimpses[panel] = until
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            if glimpses[panel] == until { glimpses[panel] = nil }
+        }
+    }
+
+    private func shows(_ panel: Panel) -> Bool { game.showAll || glimpses[panel] != nil }
+
     private var hud: some View {
-        Color.clear
+        let all = game.showAll && !game.mapOpen
+        return Color.clear
             // No health bar: when the body is failing, the edges of the world go red.
             .overlay {
                 Rectangle()
@@ -26,44 +42,54 @@ struct GameView: View {
                     .opacity(min(0.85, max(0, (60 - state.needs.health) / 60)))
                     .allowsHitTesting(false)
             }
-            // The map gets the whole window to itself.
             .overlay(alignment: .topLeading) {
                 VStack(alignment: .leading, spacing: 3 * px) {
                     needs
-                    skills
+                    skills.shown(all)
                 }
                 .padding(4 * px)
-                .opacity(game.mapOpen ? 0 : 1)
+                .shown(!game.mapOpen)
             }
             .overlay(alignment: .topTrailing) {
                 VStack(alignment: .trailing, spacing: 3 * px) {
-                    calendar
-                    rescue
+                    calendar.shown(shows(.day))
+                    rescue.shown(all)
                 }
                 .padding(4 * px)
-                .opacity(game.mapOpen ? 0 : 1)
+                .shown(!game.mapOpen)
             }
-            .overlay(alignment: .bottomLeading) { whereabouts.padding(4 * px) }
-            .overlay(alignment: .bottom) { bag.padding(4 * px).opacity(game.mapOpen ? 0 : 1) }
-            .overlay(alignment: .bottomTrailing) { controls.padding(4 * px) }
+            .overlay(alignment: .bottomLeading) { whereabouts.padding(4 * px).shown(game.showAll || game.mapOpen) }
+            .overlay(alignment: .bottom) { bag.padding(4 * px).shown(shows(.bag) && !game.mapOpen) }
+            .overlay(alignment: .bottomTrailing) { controls.padding(4 * px).shown(shows(.keys)) }
             .overlay { centre }
+            .animation(.easeInOut(duration: 0.25), value: game.showAll)
+            .animation(.easeInOut(duration: 0.25), value: glimpses)
+            .onChange(of: Item.allCases.map(state.count)) { _ in glimpse(.bag) }
+            .onChange(of: state.day) { _ in glimpse(.day, seconds: 5) }
+            .onChange(of: game.intro) { _ in glimpse(.keys, seconds: 8) }
     }
 
     // MARK: Body and mind
 
+    /// Only what is going wrong: thirst, hunger, heat or cold, exhaustion.
     private var needs: some View {
-        HStack(spacing: 5 * px) {
-            // What actually kills a castaway: thirst, hunger, cold, exhaustion.
-            gauge(Art.drop, state.needs.thirst, 0x4a9bdc)
-            gauge(Art.stomach, state.needs.hunger, 0xf08a3c)
-            HStack(spacing: 2 * px) {
-                PixelImage(image: Art.thermometer)
-                PixelDial(value: state.needs.temperature / 100, width: 30)
+        let needs = state.needs, all = game.showAll
+        let dry = needs.thirst < 35, empty = needs.hunger < 35, spent = needs.fatigue > 65
+        let fevered = needs.temperature < 30 || needs.temperature > 70
+        return HStack(spacing: 5 * px) {
+            if all || dry { gauge(Art.drop, needs.thirst, 0x4a9bdc) }
+            if all || empty { gauge(Art.stomach, needs.hunger, 0xf08a3c) }
+            if all || fevered {
+                HStack(spacing: 2 * px) {
+                    PixelImage(image: Art.thermometer)
+                    PixelDial(value: needs.temperature / 100, width: 30)
+                }
             }
-            gauge(Art.bolt, 100 - state.needs.fatigue, 0x7fc653)
+            if all || spent { gauge(Art.bolt, 100 - needs.fatigue, 0x7fc653) }
         }
         .padding(4 * px)
         .pixelPanel()
+        .shown(all || dry || empty || fevered || spent)
     }
 
     /// Runs red when it is nearly empty.
@@ -192,6 +218,7 @@ struct GameView: View {
         HStack(spacing: 3 * px) {
             PixelImage(image: Art.arrows)
             PixelImage(image: Art.spaceKey)
+            PixelImage(image: Art.key("TAB"))
             keyButton("C", Art.hammer, lit: game.crafting, action: game.toggleCrafting)
             keyButton("M", Art.mapIcon, lit: game.mapOpen, action: game.toggleMap)
                 .opacity(state.has(.map) ? 1 : 0.45)
@@ -330,5 +357,12 @@ struct GameView: View {
                 PixelImage(image: Art.number(day))
             }
         }
+    }
+}
+
+private extension View {
+    /// There or not, without leaving a dead spot that swallows clicks.
+    func shown(_ on: Bool) -> some View {
+        opacity(on ? 1 : 0).allowsHitTesting(on)
     }
 }
