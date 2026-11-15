@@ -10,8 +10,7 @@ final class IslandCoreTests: XCTestCase {
         }
     }
 
-    func testRNGMatchesPythonMirror() {
-        // Same value the Python balancing mirror (balance/island.py) produces for seed 1.
+    func testRNGIsSplitMix64() {
         var rng = SplitMix64(seed: 1)
         XCTAssertEqual(rng.next(), 0x910A_2DEC_8902_5CC1)
     }
@@ -26,21 +25,32 @@ final class IslandCoreTests: XCTestCase {
         XCTAssertEqual(skills.level(.crafting, balance: balance), 1)
     }
 
-    func testSignalLockedAtStart() {
+    func testNothingTurnsAtStart() {
         let engine = GameEngine(seed: 1)
-        XCTAssertFalse(engine.canPerform(.lightSignal))
-        XCTAssertTrue(engine.rescueChecklist.allSatisfy { !$0.done })
+        XCTAssertEqual(engine.terraformPerDay, 0)
+        XCTAssertTrue(engine.terraformChecklist.allSatisfy { !$0.done })
+        XCTAssertFalse(engine.canPerform(.craft(.warmer)))
     }
 
-    func testSummitNeedsExplorationLevel() {
+    func testVentNeedsExplorationLevel() {
         let engine = GameEngine(seed: 1)
-        XCTAssertFalse(engine.canPerform(.explore(.summit)))
+        XCTAssertFalse(engine.canPerform(.explore(.vent)))
+    }
+
+    func testThePlanetOnlyTurnsWithMachines() {
+        // The winner always has all three; nobody wins without the planet at 100.
+        var bot = PlannerBot()
+        for seed: UInt64 in 1...80 {
+            let state = simulate(seed: seed, bot: &bot)
+            XCTAssertEqual(state.terraform > 0, state.has(.warmer), "seed \(seed)")
+            if case .habitable = state.outcome { XCTAssertEqual(state.terraform, 100) }
+        }
     }
 
     func testRegionsBehindToolsStayShut() {
-        // However skilled, the jungle needs an axe.
+        // However skilled, the fungal forest needs a cutter.
         let engine = GameEngine(seed: 1)
-        XCTAssertTrue(engine.canPerform(.explore(.palmGrove)))
+        XCTAssertTrue(engine.canPerform(.explore(.grove)))
         var bot = PlannerBot()
         for seed: UInt64 in 1...50 {
             let state = simulate(seed: seed, bot: &bot)
@@ -59,12 +69,12 @@ final class IslandCoreTests: XCTestCase {
         XCTAssertEqual(a.day, b.day)
     }
 
-    func testSpecialistNeverGetsRescued() {
+    func testSpecialistNeverTurnsThePlanet() {
         for seed in 1...50 {
             var bot = ForagerBot()
             let state = simulate(seed: UInt64(seed), bot: &bot)
-            if case .rescued = state.outcome {
-                XCTFail("Forager should never be rescued (seed \(seed))")
+            if case .habitable = state.outcome {
+                XCTFail("Forager should never win (seed \(seed))")
             }
         }
     }
@@ -79,16 +89,16 @@ final class IslandCoreTests: XCTestCase {
     }
 
     /// Balance guard: if a change makes the game trivial or impossible, this fails.
-    func testPlannerRescueRateStaysInBand() {
+    func testPlannerWinRateStaysInBand() {
         var rescued = 0
         let games = 300
         for seed in 1...games {
             var bot = PlannerBot()
-            if case .rescued = simulate(seed: UInt64(seed), bot: &bot).outcome { rescued += 1 }
+            if case .habitable = simulate(seed: UInt64(seed), bot: &bot).outcome { rescued += 1 }
         }
         let rate = Double(rescued) / Double(games)
-        XCTAssertGreaterThan(rate, 0.35, "Too hard: planner rescue rate \(rate)")
-        XCTAssertLessThan(rate, 0.80, "Too easy: planner rescue rate \(rate)")
+        XCTAssertGreaterThan(rate, 0.35, "Too hard: planner win rate \(rate)")
+        XCTAssertLessThan(rate, 0.80, "Too easy: planner win rate \(rate)")
     }
 
     func testMiddaySunBringsHeatstrokeAndShadeDoesNot() {
@@ -100,26 +110,26 @@ final class IslandCoreTests: XCTestCase {
         while shade.state.hoursLeft > 3 { shade.perform(.rest(shaded: true)) }
         XCTAssertGreaterThan(sun.state.needs.temperature, 75)
         XCTAssertEqual(shade.state.needs.temperature, 50)
-        XCTAssertLessThan(sun.state.needs.thirst, shade.state.needs.thirst)
+        XCTAssertLessThan(sun.state.needs.oxygen, shade.state.needs.oxygen)
     }
 
     func testNeedsFallThroughTheDay() {
         var engine = GameEngine(seed: 7)
         let morning = engine.state.needs
         engine.perform(.rest(shaded: true))
-        XCTAssertLessThan(engine.state.needs.thirst, morning.thirst)
+        XCTAssertLessThan(engine.state.needs.oxygen, morning.oxygen)
         XCTAssertLessThan(engine.state.needs.hunger, morning.hunger)
         XCTAssertGreaterThan(engine.state.needs.fatigue, morning.fatigue)
     }
 
-    func testStayingUpCostsTheSameFoodAndWaterButNoRest() {
+    func testStayingUpCostsTheSameFoodAndAirButNoRest() {
         var up = GameEngine(seed: 7)
         var early = GameEngine(seed: 7)
         while up.state.hoursLeft > 0 { up.perform(.rest(shaded: true)) }
         up.perform(.sleep)
         early.perform(.sleep)
-        // A day is a day for thirst and hunger, however it was spent.
-        XCTAssertEqual(up.state.needs.thirst, early.state.needs.thirst, accuracy: 0.001)
+        // A day is a day for air and hunger, however it was spent.
+        XCTAssertEqual(up.state.needs.oxygen, early.state.needs.oxygen, accuracy: 0.001)
         XCTAssertEqual(up.state.needs.hunger, early.state.needs.hunger, accuracy: 0.001)
         XCTAssertGreaterThanOrEqual(up.state.needs.fatigue, early.state.needs.fatigue)
     }

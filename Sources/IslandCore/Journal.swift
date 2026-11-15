@@ -3,9 +3,9 @@ import Foundation
 /// What survives between castaways. Skills reset every run; knowledge does not.
 public struct Journal: Codable, Sendable, Equatable {
     public var runs = 0
-    public var rescues = 0
-    public var bestRescueDay: Int?
-    public var knownRegions: Set<Region> = [.beach]
+    public var successes = 0
+    public var bestDay: Int?
+    public var knownRegions: Set<Region> = [.landing]
     public var notes: [String] = []
 
     public init() {}
@@ -14,14 +14,14 @@ public struct Journal: Codable, Sendable, Equatable {
         runs += 1
         knownRegions.formUnion(state.discovered)
         switch state.outcome {
-        case let .rescued(day):
-            rescues += 1
-            bestRescueDay = min(bestRescueDay ?? day, day)
-            notes.append("Castaway #\(runs) was rescued on day \(day).")
+        case let .habitable(day):
+            successes += 1
+            bestDay = min(bestDay ?? day, day)
+            notes.append("Castaway #\(runs) breathed the air on day \(day).")
         case let .died(day, cause):
             notes.append("Castaway #\(runs) died of \(cause.rawValue) on day \(day).")
-        case .storm:
-            notes.append("Castaway #\(runs) was lost to the storm.")
+        case .winter:
+            notes.append("Castaway #\(runs) was lost to the winter.")
         case nil:
             break
         }

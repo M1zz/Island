@@ -18,7 +18,7 @@ public struct GameEngine: Sendable {
         rng = SplitMix64(seed: seed)
         state = GameState(hoursPerDay: balance.hoursPerDay)
         startDay()
-        state.log.append("Day 1. You wake up on an unknown beach. Weather: \(state.weather.rawValue).")
+        state.log.append("Day 1. The pod is down and you are alive. Weather: \(state.weather.rawValue).")
     }
 
     public func level(_ skill: Skill) -> Int {
@@ -30,12 +30,10 @@ public struct GameEngine: Sendable {
     public func hours(for action: Action) -> Int {
         switch action {
         case let .gather(_, region): 2 + region.travelHours
-        case .fish: 3
-        case .fetchWater: 1 + Region.stream.travelHours
+        case .cutIce: 1 + Region.glacier.travelHours
         case let .explore(region): 3 + region.travelHours
         case let .craft(recipe): recipe.spec.hours + (recipe.spec.requiresRegion?.travelHours ?? 0)
-        case .makeFire: 1
-        case .lightSignal: 2 + Region.summit.travelHours
+        case .lightBurner: 1
         case .rest: 1
         case .sleep: 0
         }
@@ -49,10 +47,8 @@ public struct GameEngine: Sendable {
         switch action {
         case let .gather(item, region):
             return state.discovered.contains(region) && region.yields.base(for: item) > 0
-        case .fish:
-            return true
-        case .fetchWater:
-            return state.discovered.contains(.stream)
+        case .cutIce:
+            return state.discovered.contains(.glacier)
         case let .explore(region):
             return !state.discovered.contains(region)
                 && state.discovered.contains(where: { $0.neighbors.contains(region) })
@@ -65,13 +61,8 @@ public struct GameEngine: Sendable {
             if let region = spec.requiresRegion, !state.discovered.contains(region) { return false }
             guard level(.crafting) >= spec.requiredLevel else { return false }
             return spec.cost.allSatisfy { state.count($0.0) >= $0.1 }
-        case .makeFire:
-            return !state.fireLitToday && (state.count(.dryWood) > 0 || state.count(.wood) > 0)
-        case .lightSignal:
-            return state.discovered.contains(.summit)
-                && state.has(.signalFrame)
-                && state.count(.dryWood) >= balance.signalDryWood
-                && level(.survival) >= balance.signalMinSurvival
+        case .lightBurner:
+            return !state.burnerLit && state.count(.biomass) > 0
         case .rest, .sleep:
             return true
         }
@@ -85,34 +76,34 @@ public struct GameEngine: Sendable {
     public static let allActions: [Action] = {
         var list: [Action] = []
         for region in Region.allCases {
-            for item in [Item.cleanWater, .food, .wood, .fiber, .stone] where region.yields.base(for: item) > 0 {
+            for item in [Item.air, .food, .biomass, .fiber, .ore] where region.yields.base(for: item) > 0 {
                 list.append(.gather(item, region))
             }
         }
-        list.append(.fish)
-        list.append(.fetchWater)
-        for region in Region.allCases where region != .beach {
+        list.append(.cutIce)
+        for region in Region.allCases where region != .landing {
             list.append(.explore(region))
         }
         for recipe in Recipe.allCases {
             list.append(.craft(recipe))
         }
-        list.append(.makeFire)
-        list.append(.lightSignal)
+        list.append(.lightBurner)
         list.append(.sleep)
         return list
     }()
 
-    /// Rescue checklist, for UI hints.
-    public var rescueChecklist: [(label: String, done: Bool)] {
-        [
-            ("Find the summit", state.discovered.contains(.summit)),
-            ("Build a signal frame", state.has(.signalFrame)),
-            ("Stockpile \(balance.signalDryWood) dry wood (\(state.count(.dryWood)))",
-             state.count(.dryWood) >= balance.signalDryWood),
-            ("Survival level \(balance.signalMinSurvival)", level(.survival) >= balance.signalMinSurvival),
-        ]
+    /// The three machines, in order, for UI hints.
+    public var terraformChecklist: [(structure: Structure, done: Bool)] {
+        Structure.terraformers.map { ($0, state.has($0)) }
     }
+
+    /// How much the planet turns each day with what stands now.
+    public var terraformPerDay: Double {
+        state.structures.reduce(0) { $0 + $1.terraformPerDay }
+    }
+
+    /// How far along the planet is, 0...1.
+    private var turned: Double { min(1, state.terraform / 100) }
 
     // MARK: - Actions
 
@@ -154,42 +145,32 @@ public struct GameEngine: Sendable {
 
         switch action {
         case let .gather(item, region):
-            let amount = rollYield(base: region.yields.base(for: item), skill: .foraging)
+            // Things grow as the planet turns.
+            let growth = item == .food || item == .biomass ? 1 + balance.terraformGrowth * turned : 1
+            let amount = rollYield(base: region.yields.base(for: item) * growth, skill: .foraging)
             state.inventory[item, default: 0] += amount
             success = amount > 0
-            if item == .cleanWater, rng.chance(balance.palmFallChance * max(0.25, 1 - 0.15 * Double(level(.foraging)))) {
+            if item == .air, rng.chance(balance.podFallChance * max(0.25, 1 - 0.15 * Double(level(.foraging)))) {
                 state.needs.health -= balance.injuryDamage
-                messages.append("You slipped coming down the palm.")
+                messages.append("You slipped coming down from the pods.")
             }
-            messages.append(item == .cleanWater
-                ? "Opened coconuts: +\(amount) clean water."
+            messages.append(item == .air
+                ? "Tapped breath pods: +\(amount) air."
                 : "Gathered \(amount) \(item.displayName.lowercased()) at the \(region.displayName.lowercased()).")
             messages += gainXP(10, .foraging, difficulty: region.difficulty, failed: !success,
                                key: "gather.\(item.rawValue).\(region.rawValue)")
 
-        case .fish:
-            let lvl = level(.foraging)
-            success = rng.chance(clamp(0.35 + 0.08 * Double(lvl), 0.05, 0.95))
-            if success {
-                let amount = 3 + lvl / 2
-                state.inventory[.food, default: 0] += amount
-                messages.append("Caught fish: +\(amount) food.")
-            } else {
-                messages.append("Nothing bit today.")
-            }
-            messages += gainXP(12, .foraging, difficulty: 1, failed: !success, key: "fish")
-
-        case .fetchWater:
+        case .cutIce:
             let amount = 3 + level(.survival) / 3
-            state.inventory[.water, default: 0] += amount
-            messages.append("Fetched \(amount) raw water from the stream.")
-            messages += gainXP(4, .survival, difficulty: 0, failed: false, key: "fetchWater")
+            state.inventory[.ice, default: 0] += amount
+            messages.append("Cut \(amount) ice from the glacier.")
+            messages += gainXP(4, .survival, difficulty: 0, failed: false, key: "cutIce")
 
         case let .explore(region):
             let lvl = level(.exploration)
             let bonus = journal.knownRegions.contains(region) ? balance.journalExploreBonus : 0
             success = rng.chance(clamp(0.4 + 0.15 * Double(lvl - region.difficulty) + bonus, 0.05, 0.95))
-            let rainRisk = state.weather == .rain ? 0.05 : 0
+            let rainRisk = state.weather == .storm ? 0.05 : 0
             let injuryChance = clamp(0.12 + 0.06 * Double(region.difficulty - lvl) + rainRisk, 0.02, 0.5)
             if rng.chance(injuryChance) {
                 state.needs.health -= balance.injuryDamage
@@ -218,50 +199,36 @@ public struct GameEngine: Sendable {
                 case let .items(item, amount):
                     state.inventory[item, default: 0] += amount
                 }
-                messages.append("Crafted: \(recipe.displayName).")
+                messages.append("Built: \(recipe.displayName).")
             } else {
-                messages.append("Crafting \(recipe.displayName.lowercased()) failed. Materials kept.")
+                messages.append("Building \(recipe.displayName.lowercased()) failed. Materials kept.")
             }
             messages += gainXP(spec.baseXP, .crafting, difficulty: spec.requiredLevel, failed: !success,
                                key: "craft.\(recipe.rawValue)")
 
-        case .makeFire:
+        case .lightBurner:
             let lvl = level(.survival)
-            let usesDryWood = state.count(.dryWood) > 0
-            state.inventory[usesDryWood ? Item.dryWood : Item.wood, default: 0] -= 1
-            var probability = 0.3 + 0.12 * Double(lvl) - (usesDryWood ? 0 : 0.25)
-            let raining = state.weather == .rain
-            if raining {
-                probability -= state.has(.shelter) ? 0.1 : 0.25
+            state.inventory[.biomass, default: 0] -= 1
+            var probability = 0.3 + 0.12 * Double(lvl)
+            let storming = state.weather == .storm
+            if storming {
+                probability -= state.has(.dome) ? 0.1 : 0.25
             }
             success = rng.chance(clamp(probability, 0.05, 0.95))
-            state.fireLitToday = success
+            state.burnerLit = success
             if success, state.needs.temperature < 50 {
                 state.needs.temperature = min(50, state.needs.temperature + balance.fireWarmth)
             }
-            messages.append(success ? "The fire caught. Tonight you eat cooked food." : "The fire died out.")
-            messages += boil()
-            messages += gainXP(15, .survival, difficulty: 1 + (raining ? 1 : 0), failed: !success, key: "makeFire")
-
-        case .lightSignal:
-            let lvl = level(.survival)
-            let rainPenalty = state.weather == .rain ? 0.3 : 0
-            success = rng.chance(clamp(0.55 + 0.15 * Double(lvl - balance.signalMinSurvival) - rainPenalty, 0.05, 0.95))
-            if success {
-                state.outcome = .rescued(day: state.day)
-                messages.append("The signal fire roars on the summit. A ship turns toward the island.")
-            } else {
-                state.inventory[.dryWood, default: 0] -= balance.signalFailureWoodLoss
-                messages.append("The signal fire sputtered out. You lost \(balance.signalFailureWoodLoss) dry wood.")
-            }
-            messages += gainXP(40, .survival, difficulty: 3, failed: !success, key: "lightSignal")
+            messages.append(success ? "The burner caught. Tonight is warm." : "The burner choked and went out.")
+            messages += electrolyze()
+            messages += gainXP(15, .survival, difficulty: 1 + (storming ? 1 : 0), failed: !success, key: "lightBurner")
 
         case .rest, .sleep:
             break
         }
 
-        // Wading in for water or standing in the surf takes the heat off.
-        if action == .fetchWater, state.needs.temperature > 50 {
+        // An hour among the ice takes the heat off.
+        if action == .cutIce, state.needs.temperature > 50 {
             state.needs.temperature = max(50, state.needs.temperature - balance.waterCool)
         }
         let (passing, struck) = pass(hours: cost, open: isUnderOpenSky(action), working: true)
@@ -269,7 +236,7 @@ public struct GameEngine: Sendable {
 
         if state.outcome == nil, state.needs.health <= 0 {
             state.outcome = .died(day: state.day, cause: struck ? .heatstroke : .injuries)
-            messages.append(struck ? "The sun was too much." : "Your injuries were too much.")
+            messages.append(struck ? "The suit could not shed the heat." : "Your injuries were too much.")
         }
         state.log.append(contentsOf: messages)
         return ActionResult(success: success, messages: messages)
@@ -277,23 +244,22 @@ public struct GameEngine: Sendable {
 
     // MARK: - Internals
 
-    /// Waking hours go by: you get thirstier and hungrier the whole time, not just overnight,
-    /// and you drink when you need to if there is anything to drink.
+    /// Waking hours go by: the tank runs down and you get hungrier the whole time, not just overnight,
+    /// and you open a canister when you need one if there is one.
     private mutating func pass(hours: Int, open: Bool, working: Bool) -> (messages: [String], heatstroke: Bool) {
         state.hoursSpentToday += hours
         wear(hours: hours)
         let struck = weather(hours: hours, open: open, working: working)
-        return ((struck ? ["Heatstroke. You should not have stayed out in the sun."] : []) + drink(), struck)
+        return ((struck ? ["Heatstroke. You should not have stayed out in the sun."] : []) + breathe(), struck)
     }
 
-    /// Whether doing this keeps you out under the sun. Camp is on the beach, so a shelter is its only shade.
+    /// Whether doing this keeps you out under the sun. The pod is on open ground, so a dome is its only shade.
     private func isUnderOpenSky(_ action: Action) -> Bool {
         switch action {
         case let .gather(_, region), let .explore(region): region.isOpenSky
-        case .fish, .lightSignal: true
-        case .fetchWater: false
-        case let .craft(recipe): recipe.spec.requiresRegion.map(\.isOpenSky) ?? !state.has(.shelter)
-        case .makeFire: !state.has(.shelter)
+        case .cutIce: false
+        case let .craft(recipe): recipe.spec.requiresRegion.map(\.isOpenSky) ?? !state.has(.dome)
+        case .lightBurner: !state.has(.dome)
         case let .rest(shaded): !shaded
         case .sleep: false
         }
@@ -301,19 +267,21 @@ public struct GameEngine: Sendable {
 
     private mutating func wear(hours: Int) {
         let share = Double(hours) / Double(balance.hoursPerDay)
-        state.needs.thirst = max(0, state.needs.thirst - balance.thirstDecayPerDay * share)
+        // The more the planet has turned, the less the suit has to make up.
+        let relief = 1 - balance.terraformAirRelief * turned
+        state.needs.oxygen = max(0, state.needs.oxygen - balance.oxygenDecayPerDay * share * relief)
         state.needs.hunger = max(0, state.needs.hunger - balance.hungerDecayPerDay * share)
     }
 
-    /// Body temperature, hour by hour: rain chills, the midday sun under open sky heats,
+    /// Body temperature, hour by hour: a storm chills, the midday sun under open sky heats,
     /// shade cools, and a dry hour warms you back up if you were cold. Returns whether you collapsed from the heat.
     private mutating func weather(hours: Int, open: Bool, working: Bool) -> Bool {
         // `hoursLeft` has already been charged for these hours.
         let start = balance.dawnHour + balance.hoursPerDay - state.hoursLeft - hours
         for hour in start..<start + hours {
             var heat = state.needs.temperature
-            if state.weather == .rain {
-                heat -= balance.rainChillPerHour
+            if state.weather == .storm {
+                heat -= balance.stormChillPerHour
             } else if heat < 50 {
                 heat = min(50, heat + balance.sunWarmthPerHour)
             } else if !open {
@@ -323,7 +291,7 @@ public struct GameEngine: Sendable {
             }
             state.needs.temperature = clamp(heat, 0, 100)
             if heat > balance.sweatThreshold {
-                state.needs.thirst = max(0, state.needs.thirst - balance.heatThirstPerHour)
+                state.needs.oxygen = max(0, state.needs.oxygen - balance.heatAirPerHour)
             }
         }
         guard state.needs.temperature >= 100 else { return false }
@@ -336,11 +304,11 @@ public struct GameEngine: Sendable {
 
     /// The daylight left when you turn in is spent at camp: out of the sun, or drying off, or under a roof.
     private mutating func settle(hours: Int) {
-        let roof = state.has(.shelter)
+        let roof = state.has(.dome)
         for _ in 0..<hours {
             var heat = state.needs.temperature
-            if state.weather == .rain {
-                if !roof { heat -= balance.rainChillPerHour }
+            if state.weather == .storm {
+                if !roof { heat -= balance.stormChillPerHour }
             } else if heat < 50 {
                 heat = min(50, heat + balance.sunWarmthPerHour)
             } else {
@@ -350,32 +318,22 @@ public struct GameEngine: Sendable {
         }
     }
 
-    /// With a fire going and a pot to put on it, stream water is boiled and becomes clean.
-    private mutating func boil() -> [String] {
-        guard state.fireLitToday, state.has(.clayPot), state.count(.water) > 0 else { return [] }
-        let amount = state.count(.water)
-        state.inventory[.cleanWater, default: 0] += amount
-        state.inventory[.water] = 0
-        return ["Boiled \(amount) water over the fire."]
+    /// With the burner running and an electrolyzer to feed, ice is split into air you can breathe.
+    private mutating func electrolyze() -> [String] {
+        guard state.burnerLit, state.has(.electrolyzer), state.count(.ice) > 0 else { return [] }
+        let amount = state.count(.ice)
+        state.inventory[.air, default: 0] += amount
+        state.inventory[.ice] = 0
+        return ["Split \(amount) ice into air."]
     }
 
-    /// Clean water first. Stream water straight from the bag can make you sick.
-    private mutating func drink() -> [String] {
-        var messages: [String] = []
-        while state.needs.thirst <= balance.drinkThreshold && state.water > 0 {
-            let clean = state.count(.cleanWater) > 0
-            state.inventory[clean ? Item.cleanWater : Item.water, default: 0] -= 1
-            state.needs.thirst = min(100, state.needs.thirst + balance.drinkRestore)
-            if !clean {
-                let chance = balance.rawWaterSicknessChance * max(0, 1 - 0.08 * Double(level(.survival)))
-                if rng.chance(chance) {
-                    state.needs.health -= balance.sicknessDamage
-                    state.needs.fatigue = min(100, state.needs.fatigue + balance.sicknessFatigue)
-                    messages.append("Unboiled water made you sick.")
-                }
-            }
+    /// Open canisters while the tank is low and there are any.
+    private mutating func breathe() -> [String] {
+        while state.needs.oxygen <= balance.breatheThreshold && state.count(.air) > 0 {
+            state.inventory[.air, default: 0] -= 1
+            state.needs.oxygen = min(100, state.needs.oxygen + balance.breathRestore)
         }
-        return messages
+        return []
     }
 
     private mutating func rollYield(base: Double, skill: Skill) -> Int {
@@ -400,21 +358,22 @@ public struct GameEngine: Sendable {
 
     private mutating func endDay() -> [String] {
         var messages: [String] = []
-        let hasShelter = state.has(.shelter)
+        let hasShelter = state.has(.dome)
 
         // Sleep
         var fatigue = state.needs.fatigue - balance.restRecoveryPerHour * Double(state.hoursLeft)
         fatigue -= hasShelter ? balance.shelterSleepRecovery : balance.sleepRecovery
-        if state.weather == .rain && !hasShelter {
-            fatigue += balance.rainSleepPenalty
-            messages.append("Rain soaked you through the night.")
+        if state.weather == .storm && !hasShelter {
+            fatigue += balance.stormSleepPenalty
+            messages.append("The storm kept you up all night.")
         }
         settle(hours: max(0, balance.hoursPerDay - state.hoursSpentToday))
-        // The night cools you off, then takes heat. A fire and a roof keep some of it in.
-        var chill = balance.nightChill
-        if state.fireLitToday { chill -= balance.fireNightWarmth }
+        // The night cools you off, then takes heat. The burner and a dome keep some of it in,
+        // and the nights grow milder as the planet turns.
+        var chill = balance.nightChill - balance.terraformNightWarmth * turned
+        if state.burnerLit { chill -= balance.fireNightWarmth }
         if hasShelter { chill -= balance.shelterNightWarmth }
-        if state.weather == .rain && !hasShelter { chill += balance.rainNightChill }
+        if state.weather == .storm && !hasShelter { chill += balance.stormNightChill }
         state.needs.temperature = max(0, min(50, state.needs.temperature) - max(0, chill))
         if state.needs.temperature < balance.shiverThreshold {
             fatigue += balance.shiverFatigue
@@ -422,13 +381,13 @@ public struct GameEngine: Sendable {
         }
         state.needs.fatigue = clamp(fatigue, 0, 100)
 
-        // The rest of the day's thirst and hunger, for the hours slept through.
+        // The rest of the day's air and hunger, for the hours slept through.
         wear(hours: max(0, balance.hoursPerDay - state.hoursSpentToday))
-        messages += boil()
-        messages += drink()
+        messages += electrolyze()
+        messages += breathe()
 
         // Eat
-        let meal = state.fireLitToday ? balance.cookedMealRestore : balance.mealRestore
+        let meal = state.burnerLit ? balance.cookedMealRestore : balance.mealRestore
         while state.needs.hunger <= balance.eatThreshold && state.count(.food) > 0 {
             state.inventory[.food, default: 0] -= 1
             state.needs.hunger = min(100, state.needs.hunger + meal)
@@ -439,9 +398,9 @@ public struct GameEngine: Sendable {
         }
 
         // Damage & recovery
-        if state.needs.thirst <= 0 {
-            state.needs.health -= balance.dehydrationDamage
-            messages.append("You are dehydrated.")
+        if state.needs.oxygen <= 0 {
+            state.needs.health -= balance.suffocationDamage
+            messages.append("The tank is empty.")
         }
         if state.needs.hunger <= 0 {
             state.needs.health -= balance.starvationDamage
@@ -451,22 +410,33 @@ public struct GameEngine: Sendable {
             state.needs.health -= balance.hypothermiaDamage
             messages.append("The cold is in your bones.")
         }
-        if state.needs.thirst > 50 && state.needs.hunger > 50 && state.needs.temperature > 25 && state.needs.temperature < 75 && state.needs.fatigue < 50 {
+        if state.needs.oxygen > 50 && state.needs.hunger > 50 && state.needs.temperature > 25 && state.needs.temperature < 75 && state.needs.fatigue < 50 {
             state.needs.health = min(100, state.needs.health + balance.dailyRegen)
         }
 
         if state.needs.health <= 0 {
-            let cause: DeathCause = state.needs.thirst <= 0 ? .dehydration
+            let cause: DeathCause = state.needs.oxygen <= 0 ? .suffocation
                 : state.needs.hunger <= 0 ? .starvation : state.needs.temperature <= 0 ? .exposure : .injuries
             state.outcome = .died(day: state.day, cause: cause)
             messages.append("You did not survive the night (\(cause.rawValue)).")
             return messages
         }
 
+        // The machines ran all night.
+        if terraformPerDay > 0 {
+            state.terraform = min(100, state.terraform + terraformPerDay)
+            messages.append("The planet has turned \(Int(state.terraform))%.")
+        }
+        if state.terraform >= 100 {
+            state.outcome = .habitable(day: state.day)
+            messages.append("You take the helmet off. The air holds.")
+            return messages
+        }
+
         state.day += 1
-        if state.day >= balance.stormDay {
-            state.outcome = .storm
-            messages.append("The storm arrives. No ship will come now.")
+        if state.day >= balance.winterDay {
+            state.outcome = .winter
+            messages.append("The long winter arrives. The planet was not ready.")
             return messages
         }
 
@@ -476,14 +446,8 @@ public struct GameEngine: Sendable {
     }
 
     private mutating func startDay() {
-        state.weather = rng.chance(balance.rainChance) ? .rain : .clear
-        if state.weather == .rain {
-            // Rain is clean water. With nothing to hold it you can only drink your fill
-            // while it falls; a pot keeps some for later.
-            state.needs.thirst = min(100, state.needs.thirst + balance.drinkRestore)
-            if state.has(.clayPot) { state.inventory[.cleanWater, default: 0] += 3 }
-        }
-        state.fireLitToday = false
+        state.weather = rng.chance(balance.stormChance) ? .storm : .clear
+        state.burnerLit = false
         state.hoursSpentToday = 0
         state.actionsToday = [:]
         let lostHours = Int(state.needs.fatigue / balance.fatiguePerLostHour)

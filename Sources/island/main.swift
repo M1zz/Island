@@ -24,8 +24,8 @@ func printStatus(_ engine: GameEngine) {
     let s = engine.state
     print("""
 
-    ─── Day \(s.day)/\(engine.balance.stormDay - 1)  ·  \(s.weather.rawValue)  ·  \(s.hoursLeft)h left ───
-    Thirst  \(bar(s.needs.thirst)) \(Int(s.needs.thirst))    Hunger \(bar(s.needs.hunger)) \(Int(s.needs.hunger))
+    ─── Day \(s.day)/\(engine.balance.winterDay - 1)  ·  \(s.weather.rawValue)  ·  \(s.hoursLeft)h left ───
+    Air     \(bar(s.needs.oxygen)) \(Int(s.needs.oxygen))    Hunger \(bar(s.needs.hunger)) \(Int(s.needs.hunger))
     Fatigue \(bar(s.needs.fatigue)) \(Int(s.needs.fatigue))    Health \(bar(s.needs.health)) \(Int(s.needs.health))
     """)
     let skills = Skill.allCases.map { skill in
@@ -38,12 +38,12 @@ func printStatus(_ engine: GameEngine) {
     if !built.isEmpty { print("Built:  " + built.joined(separator: ", ")) }
     let known = Region.allCases.filter(s.discovered.contains).map(\.displayName)
     print("Map:    " + known.joined(separator: " → "))
-    print("Rescue: " + engine.rescueChecklist.map { ($0.done ? "☑ " : "☐ ") + $0.label }.joined(separator: "  "))
+    print("Planet: \(Int(s.terraform))%  " + engine.terraformChecklist.map { ($0.done ? "☑ " : "☐ ") + $0.structure.displayName }.joined(separator: "  "))
 }
 
 print("""
-UNKNOWN ISLAND — castaway #\(journal.runs + 1)
-Survive. Learn. Signal for rescue before the storm on day \(engine.balance.stormDay).
+UNKNOWN PLANET — castaway #\(journal.runs + 1)
+Survive. Build. Make the air breathable before the winter on day \(engine.balance.winterDay).
 """)
 for note in journal.notes.suffix(3) {
     print("📓 \(note)")

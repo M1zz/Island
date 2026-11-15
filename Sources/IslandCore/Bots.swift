@@ -15,22 +15,17 @@ public struct RandomBot: Bot {
     }
 }
 
-/// A specialist: keeps itself fed and watered but never invests in anything else.
-/// Exists to prove that "being good at one thing" does not get you rescued.
+/// A specialist: keeps itself fed and breathing but never builds anything.
+/// Exists to prove that staying alive does not turn a planet.
 public struct ForagerBot: Bot {
     public let name = "forager"
     public init() {}
 
     public mutating func choose(in engine: GameEngine, rng: inout SplitMix64) -> Action {
         let state = engine.state
-        var plan: [Action] = []
-        if state.water < 4 { plan.append(.fetchWater) }
-        plan.append(.explore(.stream))
-        plan.append(.explore(.palmGrove))
-        if state.water < 2 { plan += [.gather(.cleanWater, .palmGrove), .gather(.cleanWater, .beach)] }
-        if state.count(.food) < 6 {
-            plan += [.gather(.food, .palmGrove), .fish, .gather(.food, .beach)]
-        }
+        var plan: [Action] = [.explore(.grove)]
+        if state.count(.air) < 3 { plan += [.gather(.air, .grove), .gather(.air, .landing)] }
+        if state.count(.food) < 6 { plan += [.gather(.food, .grove), .gather(.food, .landing)] }
         plan.append(.sleep)
         return plan.first(where: engine.canPerform) ?? .sleep
     }
@@ -41,71 +36,65 @@ public struct PlannerBot: Bot {
     public let name = "planner"
     public init() {}
 
-    /// Tools come just before the region they open.
-    static let buildOrder: [Recipe] = [.stoneAxe, .dryingRack, .rope, .clayPot, .torch, .shelter, .signalFrame]
+    /// Tools come just before the region they open; each terraformer as soon as it can go up.
+    static let buildOrder: [Recipe] = [.cutter, .smelter, .electrolyzer, .warmer, .tether, .thawer, .lamp, .seeder, .dome]
 
     static func gatherSpots(for item: Item) -> [Region] {
         switch item {
-        case .wood: [.jungle, .palmGrove, .beach]
-        case .fiber: [.palmGrove, .jungle, .stream]
-        case .stone: [.ridge, .stream]
-        case .food: [.palmGrove, .jungle, .beach]
-        case .water, .cleanWater, .dryWood: []
+        case .biomass: [.forest, .grove, .landing]
+        case .fiber: [.grove, .forest, .glacier]
+        case .ore: [.rim, .glacier]
+        case .food: [.grove, .forest, .landing]
+        case .ice, .air, .metal: []
         }
+    }
+
+    /// How to come by more of something: smelt it if it is metal, otherwise go and get it.
+    static func ways(toGet item: Item) -> [Action] {
+        (item == .metal ? [.craft(.metal)] + gatherSpots(for: .ore).map { Action.gather(.ore, $0) } : [])
+            + gatherSpots(for: item).map { Action.gather(item, $0) }
     }
 
     public mutating func choose(in engine: GameEngine, rng: inout SplitMix64) -> Action {
         let state = engine.state
-        let balance = engine.balance
-        var plan: [Action] = [.lightSignal]
+        var plan: [Action] = []
+        let burnerTries = state.actionsToday["lightBurner", default: 0]
 
-        // Too hot: to the water if there is any, else out of the sun.
-        if state.needs.temperature > 75 { plan += [.fetchWater, .rest(shaded: true)] }
+        // Too hot: to the ice if there is any, else out of the sun.
+        if state.needs.temperature > 75 { plan += [.cutIce, .rest(shaded: true)] }
 
         // 1. Stay alive
-        if state.water < 4 { plan.append(.fetchWater) }
-        if !state.discovered.contains(.stream) { plan.append(.explore(.stream)) }
-        // Nothing left to drink and no stream yet: coconuts.
-        if state.water < 2 { plan += [.gather(.cleanWater, .palmGrove), .gather(.cleanWater, .beach)] }
-        if state.count(.food) < 4 {
-            plan += Self.gatherSpots(for: .food).map { Action.gather(.food, $0) } + [Action.fish]
+        if state.has(.electrolyzer) {
+            // Ice is air once the burner runs.
+            if state.count(.air) + state.count(.ice) < 4 { plan.append(.cutIce) }
+            if state.count(.ice) > 0, !state.burnerLit, burnerTries < 3 {
+                plan += [.lightBurner] + Self.ways(toGet: .biomass)
+            }
         }
-        if !state.discovered.contains(.palmGrove) { plan.append(.explore(.palmGrove)) }
+        if state.count(.air) < 2 { plan += [.gather(.air, .grove), .gather(.air, .landing)] }
+        if !state.discovered.contains(.grove) { plan.append(.explore(.grove)) }
+        if state.count(.food) < 4 { plan += Self.ways(toGet: .food) }
+        if !state.discovered.contains(.glacier) { plan.append(.explore(.glacier)) }
 
-        // Cold: get a fire going with whatever will burn.
-        if state.needs.temperature < 25 && !state.fireLitToday && state.actionsToday["makeFire", default: 0] < 2 {
-            plan.append(.makeFire)
-        }
+        // Cold: get the burner going.
+        if state.needs.temperature < 25, !state.burnerLit, burnerTries < 2 { plan.append(.lightBurner) }
 
-        // 2. Build whatever is buildable, then push toward the summit
+        // 2. Build whatever is buildable, then push toward the vent
         plan += Self.buildOrder.map { Action.craft($0) }
-        plan += [.explore(.jungle), .explore(.ridge), .explore(.summit)]
+        plan += [.explore(.forest), .explore(.rim), .explore(.vent)]
 
-        // 3. Practice fire (max two tries a day, dry wood only)
-        if !state.fireLitToday && state.actionsToday["makeFire", default: 0] < 2 && state.count(.dryWood) > 0 {
-            plan.append(.makeFire)
-        }
-
-        // 4. Gather materials for the next missing structure
+        // 3. Gather materials for the next missing build
         if let next = Self.buildOrder.first(where: { recipe in
             if case let .structure(structure) = recipe.spec.output { return !state.has(structure) }
             return false
         }) {
             for (item, amount) in next.spec.cost where state.count(item) < amount {
-                plan += Self.gatherSpots(for: item).map { Action.gather(item, $0) }
+                plan += Self.ways(toGet: item)
             }
         }
 
-        // 5. Stockpile dry wood for the signal
-        if state.count(.dryWood) < balance.signalDryWood + 3 {
-            plan.append(.craft(.dryWood))
-            plan += Self.gatherSpots(for: .wood).map { Action.gather(.wood, $0) }
-        }
-
-        // 6. Keep a food buffer
-        if state.count(.food) < 6 {
-            plan += Self.gatherSpots(for: .food).map { Action.gather(.food, $0) } + [Action.fish]
-        }
+        // 4. Keep a food buffer
+        if state.count(.food) < 6 { plan += Self.ways(toGet: .food) }
 
         plan.append(.sleep)
         return plan.first(where: engine.canPerform) ?? .sleep
