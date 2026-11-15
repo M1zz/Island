@@ -9,7 +9,7 @@ struct Prompt: Equatable {
     let blocker: Blocker?
 
     enum Blocker: Equatable {
-        case level(Int), tool(Structure), noPath, rescueList, wood, daylight
+        case level(Int), tool(Structure), noPath, fuel, daylight
     }
 
     var enabled: Bool { blocker == nil }
@@ -21,8 +21,7 @@ struct Prompt: Equatable {
         case let .level(level): [action.icon, Art.cross, Art.icon(Skill.exploration), Art.up, Art.number(level)]
         case let .tool(tool): [action.icon, Art.cross, Art.picture(tool)]
         case .noPath: [action.icon, Art.cross]
-        case .rescueList: [action.icon, Art.cross, Art.todo]
-        case .wood: [action.icon, Art.cross, Art.log]
+        case .fuel: [action.icon, Art.cross, Art.log]
         case .daylight: [action.icon, Art.cross, Art.hourglass]
         }
     }
@@ -34,7 +33,7 @@ struct Prompt: Equatable {
 final class Game: ObservableObject {
     @Published private(set) var engine: GameEngine
     @Published private(set) var journal: Journal
-    @Published private(set) var here: Region = .beach
+    @Published private(set) var here: Region = .landing
     /// Which square of the chart the castaway stands in, like "C4".
     @Published private(set) var cell = ""
     @Published private(set) var prompt: Prompt?
@@ -102,7 +101,7 @@ final class Game: ObservableObject {
             guard let self, !event.modifierFlags.contains(.command) else { return event }
             return press(event.keyCode, down: event.type == .keyDown, repeated: event.isARepeat) ? nil : event
         }
-        scene.lost = journal.runs - journal.rescues
+        scene.lost = journal.runs - journal.successes
         refresh()
         scene.playIntro { [weak self] in self?.intro = false }
     }
@@ -213,12 +212,11 @@ final class Game: ObservableObject {
             inHand = nearProp
             let kind = IslandMap.props(around: scene.heroSpot.x, scene.heroSpot.y, reach: 40).first { $0.id == nearProp }?.kind
             motion = kind == .palm ? .climb : kind?.isCarriedOff == true ? .pick : .strike
-        case .fish: motion = .cast
-        case .fetchWater, .makeFire, .lightSignal: motion = .kneel
+        case .cutIce, .lightBurner: motion = .kneel
         case .explore: motion = .search
         default: break
         }
-        scene.startWork(motion, on: inHand, axe: engine.state.has(.stoneAxe)) { Sound.shared.play(.work) }
+        scene.startWork(motion, on: inHand, axe: engine.state.has(.cutter)) { Sound.shared.play(.work) }
         working = action
         still = 0
         scene.stopThinking()
@@ -230,7 +228,7 @@ final class Game: ObservableObject {
     func restart() {
         saveError = nil
         engine = GameEngine(seed: .random(in: 1...UInt64.max), journal: journal)
-        scene.lost = journal.runs - journal.rescues
+        scene.lost = journal.runs - journal.successes
         phase = .idle
         idle = 0
         working = nil
@@ -267,10 +265,8 @@ final class Game: ObservableObject {
         nearProp = nil
         if distance(IslandMap.bed.x, IslandMap.bed.y) < 18 {
             found = .sleep
-        } else if distance(IslandMap.fire.x, IslandMap.fire.y) < 18, !state.fireLitToday {
-            found = .makeFire
-        } else if distance(IslandMap.signal.x, IslandMap.signal.y) < 20 {
-            found = .lightSignal
+        } else if distance(IslandMap.fire.x, IslandMap.fire.y) < 18, !state.burnerLit {
+            found = .lightBurner
         } else {
             // An arm's reach and a step.
             var best = 22.0
@@ -287,8 +283,8 @@ final class Game: ObservableObject {
                 }
             }
         }
-        if found == nil, state.discovered.contains(.stream), IslandMap.streamDistance(spot.x, spot.y) < 34 {
-            found = .fetchWater
+        if found == nil, state.discovered.contains(.glacier), IslandMap.streamDistance(spot.x, spot.y) < 34 {
+            found = .cutIce
         }
         if found == nil {
             // Fog within reach means land to explore.
@@ -300,9 +296,6 @@ final class Game: ObservableObject {
                     break
                 }
             }
-        }
-        if found == nil, here == .beach, IslandMap.depth(spot.x, spot.y) < 60 {
-            found = .fish
         }
 
         let next = found.map { action in
@@ -322,26 +315,19 @@ final class Game: ObservableObject {
             if let tool = region.requiredTool, !state.has(tool) { return .tool(tool) }
             if engine.level(.exploration) < region.requiredLevel { return .level(region.requiredLevel) }
             if !state.discovered.contains(where: { $0.neighbors.contains(region) }) { return .noPath }
-        case .lightSignal:
-            return .rescueList
-        case .makeFire:
-            if state.count(.wood) + state.count(.dryWood) == 0 { return .wood }
+        case .lightBurner:
+            if state.count(.biomass) == 0 { return .fuel }
         default:
             break
         }
         return .daylight
     }
 
-    /// What the castaway drank since `before`, and whether it sat badly.
+    /// The canisters opened since `before`, and whether the sun got the better of the suit.
     private func sips(since before: GameState) -> [[CGImage]] {
         var notes: [[CGImage]] = []
-        for item in [Item.cleanWater, .water] {
-            let drunk = before.count(item) - engine.state.count(item)
-            // Boiling moves raw water to clean; that is not drinking.
-            if drunk > 0, engine.state.needs.thirst > before.needs.thirst { notes.append([Art.icon(item), PixelFont.image("-\(drunk)")]) }
-        }
-        if engine.state.needs.health < before.needs.health, before.water > engine.state.water { notes.append([Art.murkyDrop, Art.heart, Art.cross]) }
-        // Collapsed in the sun.
+        let breathed = before.count(.air) - engine.state.count(.air)
+        if breathed > 0 { notes.append([Art.icon(.air), PixelFont.image("-\(breathed)")]) }
         if engine.state.needs.temperature >= 75, engine.state.needs.health <= before.needs.health - engine.balance.heatstrokeDamage {
             notes.append([Art.sun, Art.thermometer, Art.cross])
         }
@@ -360,7 +346,7 @@ final class Game: ObservableObject {
     private func inShade() -> Bool {
         if !here.isOpenSky { return true }
         let spot = scene.heroSpot
-        if engine.state.has(.shelter), hypot(Double(spot.x - IslandMap.bed.x), Double(spot.y - IslandMap.bed.y)) < 24 { return true }
+        if engine.state.has(.dome), hypot(Double(spot.x - IslandMap.bed.x), Double(spot.y - IslandMap.bed.y)) < 24 { return true }
         return shadeTree(reach: 44).contains { abs(spot.x - $0.x - 6) < 38 && abs(spot.y - $0.y) < 14 }
     }
 
@@ -391,10 +377,11 @@ final class Game: ObservableObject {
         func source(_ item: Item) -> (x: Int, y: Int)? { nearest { $0.kind.item == item } }
 
         if state.hoursLeft <= 2 { return ([Art.moon], IslandMap.bed) }
-        if state.water == 0 || (state.needs.thirst < 50 && state.water < 2) {
-            return state.discovered.contains(.stream)
-                ? ([Art.murkyDrop], IslandMap.riverbank(y: spot.y))
-                : ([Art.coconut, Art.drop], source(.cleanWater))
+        if state.count(.air) == 0 || (state.needs.oxygen < 50 && state.count(.air) < 2) {
+            // Ice is air only once there is something to split it with.
+            return state.has(.electrolyzer)
+                ? (state.count(.ice) > 0 ? ([Art.murkyDrop, Art.flame], IslandMap.fire) : ([Art.murkyDrop], IslandMap.riverbank(y: spot.y)))
+                : ([Art.coconut, Art.drop], source(.air))
         }
         if state.count(.food) == 0 || (state.needs.hunger < 50 && state.count(.food) < 2) {
             return ([Art.fruit], source(.food))
@@ -403,19 +390,19 @@ final class Game: ObservableObject {
             // Out of the sun: the nearest thing that throws a shadow.
             return ([Art.thermometer, Art.sun, Art.treeIcon], nearestShade())
         }
-        if state.needs.temperature < 25, !state.fireLitToday {
-            return state.count(.wood) + state.count(.dryWood) > 0
-                ? ([Art.thermometer, Art.flame], IslandMap.fire) : ([Art.thermometer, Art.log], source(.wood))
+        if state.needs.temperature < 25, !state.burnerLit {
+            return state.count(.biomass) > 0
+                ? ([Art.thermometer, Art.flame], IslandMap.fire) : ([Art.thermometer, Art.log], source(.biomass))
         }
-        if !state.fireLitToday, state.hoursLeft <= 5 {
-            return state.count(.wood) + state.count(.dryWood) > 0 ? ([Art.flame], IslandMap.fire) : ([Art.log, Art.flame], source(.wood))
+        if !state.burnerLit, state.hoursLeft <= 5 {
+            return state.count(.biomass) > 0 ? ([Art.flame], IslandMap.fire) : ([Art.log, Art.flame], source(.biomass))
         }
 
-        // The way off the island, one step at a time.
+        // Turning the planet, one step at a time.
         enum Step { case find(Region), make(Recipe) }
         let steps: [Step] = [
-            .make(.map), .find(.palmGrove), .find(.stream), .make(.stoneAxe), .make(.dryingRack), .find(.jungle), .make(.rope),
-            .make(.clayPot), .find(.ridge), .make(.torch), .find(.summit), .make(.signalFrame),
+            .make(.map), .find(.grove), .find(.glacier), .make(.cutter), .make(.smelter), .make(.electrolyzer), .make(.warmer),
+            .find(.forest), .make(.tether), .find(.rim), .make(.thawer), .make(.lamp), .find(.vent), .make(.seeder),
         ]
         for step in steps {
             switch step {
@@ -426,17 +413,17 @@ final class Game: ObservableObject {
                 guard case let .structure(structure) = recipe.spec.output, !state.has(structure) else { continue }
                 let spec = recipe.spec
                 if let (item, _) = spec.cost.first(where: { state.count($0.0) < $0.1 }) {
-                    return ([Art.picture(structure), Art.icon(item)], item == .dryWood ? nil : source(item))
+                    // Metal is smelted, not found.
+                    if item == .metal, state.has(.smelter), state.count(.ore) >= 3 { return ([Art.key("C"), Art.icon(item)], nil) }
+                    return ([Art.picture(structure), Art.icon(item)], source(item == .metal ? .ore : item))
                 }
                 if engine.level(.crafting) < spec.requiredLevel { return ([Art.picture(structure), Art.hammer, Art.up], nil) }
                 if let region = spec.requiresRegion, region != here { return ([Art.picture(structure)], IslandMap.anchor(region)) }
                 return ([Art.key("C"), Art.picture(structure)], nil)
             }
         }
-        if state.count(.dryWood) < engine.balance.signalDryWood {
-            return state.count(.wood) >= 3 ? ([Art.key("C"), Art.dryLog], nil) : ([Art.dryLog, Art.log], source(.wood))
-        }
-        return ([Art.ship, Art.flame], IslandMap.signal)
+        // Everything stands. Stay alive while the machines work.
+        return nil
     }
 
     // MARK: Time
@@ -512,7 +499,7 @@ final class Game: ObservableObject {
     }
 
     private func showClock() {
-        scene.setSky(hour: clock, raining: engine.state.weather == .rain)
+        scene.setSky(hour: clock, raining: engine.state.weather == .storm)
         let night = clock >= 18.5 || clock < 5.5
         if night != isNight { isNight = night }
     }
@@ -539,7 +526,7 @@ final class Game: ObservableObject {
         for structure in Structure.allCases where engine.state.has(structure) && !before.state.has(structure) {
             notes.append([Art.picture(structure), Art.check])
         }
-        if engine.state.fireLitToday, !before.state.fireLitToday { notes.append([Art.flame, Art.check]) }
+        if engine.state.burnerLit, !before.state.burnerLit { notes.append([Art.flame, Art.check]) }
         if !result.success { notes.append([action.icon, Art.cross]) }
         notes += sips(since: before.state)
         for skill in Skill.allCases where engine.level(skill) > before.level(skill) {
@@ -592,7 +579,7 @@ final class Game: ObservableObject {
         // A cold night shows in the morning.
         if engine.state.needs.temperature < engine.balance.shiverThreshold { notes.append([Art.thermometer, Art.cross]) }
         // Rain in the night: you drank, and a pot kept some.
-        if engine.state.weather == .rain { notes.append([Art.rain, Art.drop] + (engine.state.has(.clayPot) ? [PixelFont.image("+3")] : [])) }
+        if engine.state.weather == .storm { notes.append([Art.rain, Art.drop] + (engine.state.has(.electrolyzer) ? [PixelFont.image("+3")] : [])) }
         scene.popup(notes)
         Sound.shared.play(.morning)
         refresh()
@@ -610,7 +597,7 @@ final class Game: ObservableObject {
             saveError = error.localizedDescription
         }
         scene.finish(outcome)
-        if case .rescued = outcome { Sound.shared.play(.rescued) } else { Sound.shared.play(.lost) }
+        if case .habitable = outcome { Sound.shared.play(.habitable) } else { Sound.shared.play(.lost) }
         showClock()
     }
 
@@ -625,14 +612,12 @@ final class Game: ObservableObject {
 extension Action {
     var icon: CGImage {
         switch self {
-        case .gather(.cleanWater, _): Art.coconut
+        case .gather(.air, _): Art.coconut
         case let .gather(item, _): Art.icon(item)
-        case .fish: Art.fish
-        case .fetchWater: Art.murkyDrop
+        case .cutIce: Art.murkyDrop
         case .explore: Art.compass
         case .craft: Art.hammer
-        case .makeFire: Art.flame
-        case .lightSignal: Art.ship
+        case .lightBurner: Art.flame
         case .rest, .sleep: Art.moon
         }
     }

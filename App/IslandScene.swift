@@ -25,6 +25,8 @@ final class IslandScene: SKScene {
     /// The ground near the camera, with what grows on it. The rest of the island is not drawn.
     private var squares: [Square: SKNode] = [:]
     private var known: Set<Region> = []
+    /// How far the planet has turned, in quarters: the ground is repainted when this changes.
+    private var stage = 0
     /// Things to wonder at, each hidden until its region is found. `order` counts the castaways lost before it shows.
     private var sights: [(node: SKNode, region: Region, order: Int)] = []
     /// How many castaways before this one never left.
@@ -41,7 +43,6 @@ final class IslandScene: SKScene {
     private let painter = DispatchQueue(label: "island.painter", qos: .userInitiated)
     private let fire = SKSpriteNode()
     private let glow = SKSpriteNode()
-    private let signalFire = SKSpriteNode()
     private let ship = SKSpriteNode()
     private let skyTint = SKSpriteNode(color: .white, size: .zero)
     private let rain = SKNode()
@@ -156,8 +157,8 @@ final class IslandScene: SKScene {
         place(SKSpriteNode(), Art.mountain, x: IslandMap.peak.x, y: IslandMap.peak.y)
 
         // Sights: a wreck, a cave, old bones, gulls over the good spots, a sail that never turns.
-        sights.append((place(SKSpriteNode(), Art.wreck, x: IslandMap.wreck.x, y: IslandMap.wreck.y), .beach, 0))
-        sights.append((place(SKSpriteNode(), Art.cave, x: IslandMap.cave.x, y: IslandMap.cave.y + 6), .ridge, 0))
+        sights.append((place(SKSpriteNode(), Art.wreck, x: IslandMap.wreck.x, y: IslandMap.wreck.y), .landing, 0))
+        sights.append((place(SKSpriteNode(), Art.cave, x: IslandMap.cave.x, y: IslandMap.cave.y + 6), .rim, 0))
         sights.forEach { $0.node.setScale(2) }
         for (index, spot) in IslandMap.remains.enumerated() {
             sights.append((place(SKSpriteNode(), Art.bones, x: spot.x, y: spot.y), spot.region, index + 1))
@@ -167,7 +168,7 @@ final class IslandScene: SKScene {
             flock.position = point(spot.x, spot.y - 70)
             flock.zPosition = 23000
             addChild(flock)
-            sights.append((flock, .beach, 0))
+            sights.append((flock, .landing, 0))
             for index in 0..<3 {
                 let gull = SKSpriteNode(texture: stamp(Art.gullA))
                 let reach = CGFloat(30 + index * 14)
@@ -193,17 +194,14 @@ final class IslandScene: SKScene {
         let bed = IslandMap.bed
         place(fire, Art.fireOut, x: IslandMap.fire.x, y: IslandMap.fire.y)
         place(SKSpriteNode(), Art.bedroll, x: bed.x, y: bed.y)
-        built[.shelter] = place(SKSpriteNode(), Art.shelter, x: bed.x, y: bed.y - 4)
-        built[.dryingRack] = place(SKSpriteNode(), Art.dryingRack, x: IslandMap.fire.x + 20, y: IslandMap.fire.y - 10)
-        built[.clayPot] = place(SKSpriteNode(), Art.clayPot, x: IslandMap.fire.x + 12, y: IslandMap.fire.y + 5)
-        let signal = IslandMap.signal
-        place(SKSpriteNode(), Art.cairn, x: signal.x, y: signal.y)
-        built[.signalFrame] = place(SKSpriteNode(), Art.signalFrame, x: signal.x, y: signal.y - 1)
-
-        place(signalFire, Art.fireA, x: signal.x, y: signal.y - 4)
-        signalFire.setScale(2)
-        signalFire.zPosition = CGFloat(signal.y) + 1
-        signalFire.run(.repeatForever(.animate(with: fireTextures, timePerFrame: 0.16)))
+        built[.dome] = place(SKSpriteNode(), Art.shelter, x: bed.x, y: bed.y - 4)
+        built[.smelter] = place(SKSpriteNode(), Art.dryingRack, x: IslandMap.fire.x + 20, y: IslandMap.fire.y - 10)
+        built[.electrolyzer] = place(SKSpriteNode(), Art.clayPot, x: IslandMap.fire.x + 12, y: IslandMap.fire.y + 5)
+        // The three machines stand where they are built: by the pod, by the falls, at the vent.
+        built[.warmer] = place(SKSpriteNode(), Art.warmer, x: IslandMap.fire.x - 52, y: IslandMap.fire.y - 6)
+        built[.thawer] = place(SKSpriteNode(), Art.thawer, x: IslandMap.pool.x + 96, y: IslandMap.pool.y + 30)
+        built[.seeder] = place(SKSpriteNode(), Art.seeder, x: IslandMap.signal.x, y: IslandMap.signal.y)
+        Structure.terraformers.forEach { built[$0]?.setScale(2) }
 
         place(hero, Art.heroIdle, x: IslandMap.start.x, y: IslandMap.start.y)
 
@@ -365,7 +363,6 @@ final class IslandScene: SKScene {
         ship.removeAction(forKey: "sail")
         ship.isHidden = true
         giants.values.forEach { $0.alpha = 1 }
-        signalFire.isHidden = true
         setProgress(nil)
     }
 
@@ -375,17 +372,19 @@ final class IslandScene: SKScene {
             labels[region]?.name.isHidden = !known
             labels[region]?.unknown.isHidden = known
         }
-        if state.discovered != known {
+        let turned = min(4, Int(state.terraform / 25))
+        if state.discovered != known || turned != stage {
             known = state.discovered
+            stage = turned
             // The clouds lift: repaint the ground in view, and the map.
             if squares.isEmpty { tend(now: true) } else { squares.keys.forEach { paint($0) } }
             propNodes.values.forEach(show)
             showSights()
-            let mask = IslandMap.mask(known), step = Int(zoom / 2)
+            let mask = IslandMap.mask(known), step = Int(zoom / 2), stage = stage
             painter.async { [weak self] in
-                let image = IslandMap.overview(known: mask, step: step)
+                let image = IslandMap.overview(known: mask, stage: stage, step: step)
                 DispatchQueue.main.async {
-                    guard let self, mask == IslandMap.mask(self.known) else { return }
+                    guard let self, mask == IslandMap.mask(self.known), stage == self.stage else { return }
                     self.overview.texture = self.texture(image)
                 }
             }
@@ -393,8 +392,8 @@ final class IslandScene: SKScene {
         for (structure, node) in built {
             node.isHidden = !state.has(structure)
         }
-        if fireLit != state.fireLitToday || fire.texture == nil {
-            fireLit = state.fireLitToday
+        if fireLit != state.burnerLit || fire.texture == nil {
+            fireLit = state.burnerLit
             fire.removeAllActions()
             if fireLit {
                 fire.run(.repeatForever(.animate(with: fireTextures, timePerFrame: 0.16)))
@@ -491,6 +490,9 @@ final class IslandScene: SKScene {
               let region = sprite.userData?["region"] as? Region else { return }
         sprite.isHidden = !known.contains(region) || (spent.contains(id) && kind.isCarriedOff)
         sprite.texture = stamp(picture(of: kind, id))
+        // Before the planet turns, what grows here is not green.
+        sprite.color = NSColor(red: 0.55, green: 0.3, blue: 0.62, alpha: 1)
+        sprite.colorBlendFactor = kind == .rock ? 0 : 0.6 * CGFloat(4 - stage) / 4
         sprite.setScale(1)
         sprite.alpha = 1
     }
@@ -839,16 +841,10 @@ final class IslandScene: SKScene {
     func finish(_ outcome: Outcome) {
         setProgress(nil)
         switch outcome {
-        case .rescued:
-            signalFire.isHidden = false
-            ship.isHidden = false
-            // Seen from high up: the ship comes in across the northern sea.
+        case .habitable:
+            // Seen from high up: the world you made.
             setMap(true)
-            ship.setScale(zoom)
-            let lane = mapHeight * 0.96
-            ship.position = CGPoint(x: mapWidth * 1.02, y: lane)
-            ship.run(.move(to: CGPoint(x: CGFloat(IslandMap.peak.x) + mapWidth * 0.12, y: lane), duration: 6), withKey: "sail")
-        case .storm:
+        case .winter:
             stormy = true
         case .died:
             setAsleep(false)
@@ -934,11 +930,11 @@ final class IslandScene: SKScene {
 
     /// Paints a square's ground off the main thread and fades it in over whatever was there.
     private func paint(_ square: Square, now: Bool = false) {
-        let mask = IslandMap.mask(known)
+        let mask = IslandMap.mask(known), stage = stage
         func lay(_ image: CGImage) {
             guard let node = squares[square] else { return }
             // The clouds may have lifted while this was being painted.
-            guard mask == IslandMap.mask(known) else { return paint(square) }
+            guard mask == IslandMap.mask(known), stage == self.stage else { return paint(square) }
             let old = node.children.filter { $0.name == "ground" }
             let ground = SKSpriteNode(texture: texture(image))
             ground.name = "ground"
@@ -952,10 +948,10 @@ final class IslandScene: SKScene {
             }
         }
         if now {
-            lay(IslandMap.terrain(chunkX: square.x, chunkY: square.y, known: mask))
+            lay(IslandMap.terrain(chunkX: square.x, chunkY: square.y, known: mask, stage: stage))
         } else {
             painter.async {
-                let image = IslandMap.terrain(chunkX: square.x, chunkY: square.y, known: mask)
+                let image = IslandMap.terrain(chunkX: square.x, chunkY: square.y, known: mask, stage: stage)
                 DispatchQueue.main.async { lay(image) }
             }
         }

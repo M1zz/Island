@@ -6,7 +6,7 @@ final class Sound: ObservableObject {
     static let shared = Sound()
 
     enum Effect: CaseIterable {
-        case tick, work, gain, fail, built, discover, levelUp, blocked, night, morning, rescued, lost
+        case tick, work, gain, fail, built, discover, levelUp, blocked, night, morning, habitable, lost
     }
 
     @Published var muted = UserDefaults.standard.bool(forKey: "muted") {
@@ -140,7 +140,7 @@ private enum Tune {
         case .blocked: run([46, 46], 0.07, .square(0.25))
         case .night: run([76, 72, 69, 64], 0.22, .triangle, volume: 0.22)
         case .morning: run([64, 69, 72, 76], 0.16, .triangle, volume: 0.22)
-        case .rescued: run([72, 72, 76, 79, 84, 79, 84, 88], 0.13)
+        case .habitable: run([72, 72, 76, 79, 84, 79, 84, 88], 0.13)
         case .lost: run([64, 60, 57, 52, 45], 0.26, .square(0.25))
         }
     }

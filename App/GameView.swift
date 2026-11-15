@@ -53,7 +53,7 @@ struct GameView: View {
             .overlay(alignment: .topTrailing) {
                 VStack(alignment: .trailing, spacing: 3 * px) {
                     calendar.shown(shows(.day))
-                    rescue.shown(all)
+                    rescue.shown(all || (glimpses[.day] != nil && !game.mapOpen))
                 }
                 .padding(4 * px)
                 .shown(!game.mapOpen)
@@ -74,10 +74,10 @@ struct GameView: View {
     /// Only what is going wrong: thirst, hunger, heat or cold, exhaustion.
     private var needs: some View {
         let needs = state.needs, all = game.showAll
-        let dry = needs.thirst < 35, empty = needs.hunger < 35, spent = needs.fatigue > 65
+        let dry = needs.oxygen < 35, empty = needs.hunger < 35, spent = needs.fatigue > 65
         let fevered = needs.temperature < 30 || needs.temperature > 70
         return HStack(spacing: 5 * px) {
-            if all || dry { gauge(Art.drop, needs.thirst, 0x4a9bdc) }
+            if all || dry { gauge(Art.drop, needs.oxygen, 0x4a9bdc) }
             if all || empty { gauge(Art.stomach, needs.hunger, 0xf08a3c) }
             if all || fevered {
                 HStack(spacing: 2 * px) {
@@ -125,11 +125,11 @@ struct GameView: View {
 
     private var calendar: some View {
         HStack(spacing: 4 * px) {
-            PixelImage(image: state.weather == .rain ? Art.rain : game.isNight ? Art.moon : Art.sun)
+            PixelImage(image: state.weather == .storm ? Art.rain : game.isNight ? Art.moon : Art.sun)
             PixelBar(value: Double(state.hoursLeft) / Double(engine.balance.hoursPerDay), color: 0xf9d65c, width: 30)
             // One pip a day, counting down to the storm.
             HStack(spacing: px) {
-                ForEach(1..<engine.balance.stormDay, id: \.self) { day in
+                ForEach(1..<engine.balance.winterDay, id: \.self) { day in
                     Rectangle()
                         .fill(Color(hex: day < state.day ? Ink.border : day == state.day ? 0xf08a3c : Ink.panelDark))
                         .frame(width: 2 * px, height: (day == state.day ? 7 : 5) * px)
@@ -153,25 +153,17 @@ struct GameView: View {
         .pixelPanel()
     }
 
-    // MARK: The way home
+    // MARK: The planet
 
+    /// How far it has turned, and which of the three machines stand.
     private var rescue: some View {
-        let done = engine.rescueChecklist.map(\.done)
-        return VStack(alignment: .leading, spacing: 2 * px) {
+        VStack(alignment: .leading, spacing: 2 * px) {
             HStack(spacing: 3 * px) {
-                PixelImage(image: Art.ship)
-                Spacer(minLength: 0)
+                PixelImage(image: Art.planet)
+                PixelBar(value: state.terraform / 100, color: 0x7fc653, width: 30)
             }
-            step(done[0]) { PixelImage(image: Art.peak) }
-            step(done[1]) { PixelImage(image: Art.signalFrame) }
-            step(done[2]) {
-                PixelImage(image: Art.dryLog)
-                PixelBar(value: Double(state.count(.dryWood)) / Double(engine.balance.signalDryWood), color: 0xedc96c, width: 20, height: 4)
-            }
-            step(done[3]) {
-                PixelImage(image: Art.flame)
-                PixelImage(image: Art.up)
-                PixelImage(image: Art.number(engine.balance.signalMinSurvival))
+            ForEach(engine.terraformChecklist, id: \.structure) { machine in
+                step(machine.done) { PixelImage(image: Art.picture(machine.structure)) }
             }
         }
         .padding(4 * px)
@@ -308,8 +300,8 @@ struct GameView: View {
                 HStack(spacing: 3 * px) {
                     PixelImage(image: Art.heroIdle)
                     PixelImage(image: Art.number(game.journal.runs))
-                    PixelImage(image: Art.ship).padding(.leading, 6 * px)
-                    PixelImage(image: Art.number(game.journal.rescues))
+                    PixelImage(image: Art.planet).padding(.leading, 6 * px)
+                    PixelImage(image: Art.number(game.journal.successes))
                 }
                 if let error = game.saveError { PixelText(error, color: 0xd0342c, wrap: 200) }
                 Button(action: game.restart) {
@@ -338,11 +330,11 @@ struct GameView: View {
     private func ending(_ outcome: Outcome) -> some View {
         let picture: CGImage, day: Int, cause: CGImage?
         switch outcome {
-        case let .rescued(on): (picture, day, cause) = (Art.ship, on, nil)
-        case .storm: (picture, day, cause) = (Art.storm, state.day, nil)
+        case let .habitable(on): (picture, day, cause) = (Art.planet, on, nil)
+        case .winter: (picture, day, cause) = (Art.storm, state.day, nil)
         case let .died(on, why):
             (picture, day) = (Art.skull, on)
-            cause = why == .dehydration ? Art.drop : why == .starvation ? Art.stomach : why == .exposure ? Art.thermometer : why == .heatstroke ? Art.sun : Art.heart
+            cause = why == .suffocation ? Art.drop : why == .starvation ? Art.stomach : why == .exposure ? Art.thermometer : why == .heatstroke ? Art.sun : Art.heart
         }
         return VStack(spacing: 5 * px) {
             HStack(spacing: 4 * px) {

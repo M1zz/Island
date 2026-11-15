@@ -1109,12 +1109,12 @@ enum Art {
 
     static func icon(_ region: Region) -> CGImage {
         switch region {
-        case .beach: waves
-        case .palmGrove: palmIcon
-        case .stream: murkyDrop
-        case .jungle: treeIcon
-        case .ridge: stone
-        case .summit: peak
+        case .landing: waves
+        case .grove: palmIcon
+        case .glacier: murkyDrop
+        case .forest: treeIcon
+        case .rim: stone
+        case .vent: peak
         }
     }
 
@@ -1197,16 +1197,78 @@ enum Art {
         ".....kk.....",
     ])
 
+    // MARK: Terraformers
+
+    /// Heat first: a furnace that never goes out.
+    static let warmer = Bitmap.image([
+        "...kkkkkk...",
+        "..kCCCCCCk..",
+        "..kCooooCk..",
+        "..kCoyyoCk..",
+        "..kCoyyoCk..",
+        "..kCooooCk..",
+        "..kCCCCCCk..",
+        ".kkCCCCCCkk.",
+        ".kcCCkkCCck.",
+        ".kcCCkkCCck.",
+        "kkkkkkkkkkkk",
+    ])
+    /// Then water: a pump that brings the ice up as melt.
+    static let thawer = Bitmap.image([
+        "....kkkk....",
+        "...kccck....",
+        "...kcckkkkk.",
+        "...kcckAAAk.",
+        "...kcck.kAk.",
+        "..kkcckk.k..",
+        "..kCCCCk.A..",
+        "..kCAACk....",
+        "..kCAACk.A..",
+        ".kkCCCCkk...",
+        "kkkkkkkkkkkk",
+    ])
+    /// Then life: a dish of spores for the wind.
+    static let seeder = Bitmap.image([
+        ".....l......",
+        "....lGl.l...",
+        ".....GlGl...",
+        ".....G.G....",
+        "..kkkGkGkk..",
+        ".kCCCCCCCCk.",
+        ".kCccccccCk.",
+        "..kCCCCCCk..",
+        "...kkCCkk...",
+        "....kCCk....",
+        "..kkkkkkkk..",
+    ])
+    /// The planet, once it is one you can live on.
+    static let planet = Bitmap.image([
+        "....kkkk....",
+        "..kkAAAAkk..",
+        ".kAAGGAAAAk.",
+        ".kAGGGGAAAk.",
+        "kAAGGGAAAGAk",
+        "kAAAGAAAGGAk",
+        "kAAAAAAGGGAk",
+        "kAGAAAAAGGAk",
+        ".kGGAAAAAAk.",
+        ".kAGGAAAAAk.",
+        "..kkAAAAkk..",
+        "....kkkk....",
+    ])
+
     static func picture(_ structure: Structure) -> CGImage {
         switch structure {
-        case .stoneAxe: axe
-        case .rope: rope
-        case .torch: torch
+        case .cutter: axe
+        case .tether: rope
+        case .lamp: torch
         case .map: mapIcon
-        case .dryingRack: dryingRack
-        case .shelter: shelter
-        case .clayPot: clayPot
-        case .signalFrame: signalFrame
+        case .smelter: dryingRack
+        case .dome: shelter
+        case .electrolyzer: clayPot
+        case .warmer: warmer
+        case .thawer: thawer
+        case .seeder: seeder
         }
     }
 
@@ -1242,13 +1304,13 @@ enum Art {
 
     static func icon(_ item: Item) -> CGImage {
         switch item {
-        case .water: murkyDrop
-        case .cleanWater: drop
+        case .ice: murkyDrop
+        case .air: drop
         case .food: fruit
-        case .wood: log
-        case .dryWood: dryLog
+        case .biomass: log
+        case .metal: dryLog
         case .fiber: leaf
-        case .stone: stone
+        case .ore: stone
         }
     }
 }

@@ -34,11 +34,11 @@ enum IslandMap {
         /// What you get by working on it. A palm is climbed for coconuts, not cut down.
         var item: Item {
             switch self {
-            case .palm: .cleanWater
-            case .tree, .snag, .driftwood: .wood
+            case .palm: .air
+            case .tree, .snag, .driftwood: .biomass
             case .bush, .shell: .food
             case .fern: .fiber
-            case .rock: .stone
+            case .rock: .ore
             }
         }
 
@@ -68,22 +68,22 @@ enum IslandMap {
     /// The middle of each region: where its sign sits on the map.
     static func anchor(_ region: Region) -> (x: Int, y: Int) {
         let small: (x: Int, y: Int) = switch region {
-        case .beach: (170, 150)
-        case .palmGrove: (70, 100)
-        case .stream: (278, 122)
-        case .jungle: (165, 104)
-        case .ridge: (215, 88)
-        case .summit: (215, 56)
+        case .landing: (170, 150)
+        case .grove: (70, 100)
+        case .glacier: (278, 122)
+        case .forest: (165, 104)
+        case .rim: (215, 88)
+        case .vent: (215, 56)
         }
         return (small.x * scale, small.y * scale)
     }
 
-    static let start = (x: anchor(.beach).x, y: anchor(.beach).y + 8)
+    static let start = (x: anchor(.landing).x, y: anchor(.landing).y + 8)
     static let fire = (x: start.x + 22, y: start.y + 2)
     static let bed = (x: start.x - 24, y: start.y - 8)
-    static let signal = (x: anchor(.summit).x + 36, y: anchor(.summit).y + 10)
+    static let signal = (x: anchor(.vent).x + 36, y: anchor(.vent).y + 10)
     /// Foot of the mountain, and how big it stands.
-    static let peak = (x: anchor(.summit).x, y: anchor(.summit).y - 14)
+    static let peak = (x: anchor(.vent).x, y: anchor(.vent).y - 14)
     static let mountain = (width: 900, height: 640)
 
     // MARK: Shape
@@ -184,22 +184,22 @@ enum IslandMap {
         // The mountain is not a neat cone.
         let r = hypot(wx - crown.x, wy - crown.y) + (noise(sx / 11 + 5, sy / 11 + 9) - 0.5) * 9
         let inGrove = inside(grove, wx, wy), inValley = inside(valley, wx, wy), inBay = inside(bay, wx, wy)
-        let low: Region = inGrove > 0 ? .palmGrove : inValley > 0 ? .stream : inBay > 0 ? .beach : .jungle
-        if r < summitRadius { return (.summit, summitRadius - r, .ridge) }
+        let low: Region = inGrove > 0 ? .grove : inValley > 0 ? .glacier : inBay > 0 ? .landing : .forest
+        if r < summitRadius { return (.vent, summitRadius - r, .rim) }
         if r < ridgeRadius {
-            return r - summitRadius < ridgeRadius - r ? (.ridge, r - summitRadius, .summit) : (.ridge, ridgeRadius - r, low)
+            return r - summitRadius < ridgeRadius - r ? (.rim, r - summitRadius, .vent) : (.rim, ridgeRadius - r, low)
         }
-        var best = (region: low, edge: r - ridgeRadius, across: Region.ridge)
+        var best = (region: low, edge: r - ridgeRadius, across: Region.rim)
         func consider(_ edge: Double, _ across: Region) {
             if edge < best.edge { best = (low, edge, across) }
         }
         switch low {
-        case .palmGrove: consider(inGrove, inBay > -3 ? .beach : .jungle)
-        case .stream: consider(inValley, inBay > -3 ? .beach : .jungle)
+        case .grove: consider(inGrove, inBay > -3 ? .landing : .forest)
+        case .glacier: consider(inValley, inBay > -3 ? .landing : .forest)
         default:
-            consider(-inGrove, .palmGrove)
-            consider(-inValley, .stream)
-            consider(abs(inBay), low == .beach ? .jungle : .beach)
+            consider(-inGrove, .grove)
+            consider(-inValley, .glacier)
+            consider(abs(inBay), low == .landing ? .forest : .landing)
         }
         return best
     }
@@ -210,18 +210,18 @@ enum IslandMap {
         return survey(x, y).region
     }
 
-    private static func rank(_ region: Region) -> Int { region == .summit ? 2 : region == .ridge ? 1 : 0 }
+    private static func rank(_ region: Region) -> Int { region == .vent ? 2 : region == .rim ? 1 : 0 }
 
     /// The ways through, each found by walking across the border from where it was sketched.
     static let gates: [Gate] = [
-        gate(.jungle, .beach, 170, 124, 0, 1),          // the locked door behind camp
-        gate(.palmGrove, .beach, 100, 148, 1, 0),
-        gate(.beach, .stream, 227, 150, 1, 0),
-        gate(.palmGrove, .jungle, 110, 108, 1, 0),
-        gate(.jungle, .stream, 225, 115, 1, 0),
-        gate(.ridge, .jungle, 215 - 34 * 0.94, 56 + 34 * 0.34, -0.94, 0.34),
-        gate(.ridge, .stream, 215 + 34 * 0.82, 56 + 34 * 0.57, 0.82, 0.57),   // beside the falls
-        gate(.summit, .ridge, 215 + 12 * 0.5, 56 - 12 * 0.87, 0.5, -0.87),    // on the far side of the mountain
+        gate(.forest, .landing, 170, 124, 0, 1),          // the locked door behind camp
+        gate(.grove, .landing, 100, 148, 1, 0),
+        gate(.landing, .glacier, 227, 150, 1, 0),
+        gate(.grove, .forest, 110, 108, 1, 0),
+        gate(.forest, .glacier, 225, 115, 1, 0),
+        gate(.rim, .forest, 215 - 34 * 0.94, 56 + 34 * 0.34, -0.94, 0.34),
+        gate(.rim, .glacier, 215 + 34 * 0.82, 56 + 34 * 0.57, 0.82, 0.57),   // beside the falls
+        gate(.vent, .rim, 215 + 12 * 0.5, 56 - 12 * 0.87, 0.5, -0.87),    // on the far side of the mountain
     ]
 
     private static func gate(_ from: Region, _ to: Region, _ sx: Double, _ sy: Double, _ dx: Double, _ dy: Double) -> Gate {
@@ -250,7 +250,7 @@ enum IslandMap {
             if abs(ox * gate.dx + oy * gate.dy) < 130, abs(ox * gate.dy - oy * gate.dx) < gateHalf { return nil }
         }
         let high = max(rank(spot.region), rank(spot.across))
-        let kind: Wall = high > 0 ? .cliff : spot.region == .jungle || spot.across == .jungle ? .thicket : .rocks
+        let kind: Wall = high > 0 ? .cliff : spot.region == .forest || spot.across == .forest ? .thicket : .rocks
         return (kind, (rank(spot.region) == high && high > rank(spot.across) ? spot.edge : -spot.edge) / wallHalf)
     }
 
@@ -266,13 +266,13 @@ enum IslandMap {
     static let flats = (x: 240 * scale, y: 178 * scale)
     /// The dark way up to the summit.
     static let cave: (x: Int, y: Int) = {
-        let gate = gates.first { $0.from == .summit }!
+        let gate = gates.first { $0.from == .vent }!
         return (gate.x, gate.y)
     }()
     /// Where earlier castaways ended up, one for each who never left.
     static let remains: [(x: Int, y: Int, region: Region)] = [
-        (140 * scale, 160 * scale, .beach), (70 * scale, 120 * scale, .palmGrove), (270 * scale, 140 * scale, .stream),
-        (212 * scale, 158 * scale, .beach), (150 * scale, 110 * scale, .jungle), (215 * scale, 90 * scale, .ridge),
+        (140 * scale, 160 * scale, .landing), (70 * scale, 120 * scale, .grove), (270 * scale, 140 * scale, .glacier),
+        (212 * scale, 158 * scale, .landing), (150 * scale, 110 * scale, .forest), (215 * scale, 90 * scale, .rim),
     ]
 
     // MARK: Water
@@ -285,7 +285,7 @@ enum IslandMap {
 
     /// The pool under the falls, where the river comes off the mountain.
     static let pool: (x: Int, y: Int) = {
-        let foot = streamPoints.first { survey(Int($0.0), Int($0.1)).region == .stream } ?? streamPoints[0]
+        let foot = streamPoints.first { survey(Int($0.0), Int($0.1)).region == .glacier } ?? streamPoints[0]
         return (Int(foot.0) + 12, Int(foot.1) + 70)
     }()
 
@@ -320,20 +320,34 @@ enum IslandMap {
 
     private static func bit(_ region: Region) -> UInt8 {
         switch region {
-        case .beach: 1
-        case .palmGrove: 2
-        case .stream: 4
-        case .jungle: 8
-        case .ridge: 16
-        case .summit: 32
+        case .landing: 1
+        case .grove: 2
+        case .glacier: 4
+        case .forest: 8
+        case .rim: 16
+        case .vent: 32
         }
     }
 
     /// One square of ground. Land not found yet is drawn as cloud.
-    static func terrain(chunkX: Int, chunkY: Int, known: UInt8) -> CGImage {
+    static func terrain(chunkX: Int, chunkY: Int, known: UInt8, stage: Int) -> CGImage {
         Bitmap.image(width: chunk, height: chunk) { x, y in
-            color(chunkX * chunk + x, chunkY * chunk + y, known: known)
+            barren(color(chunkX * chunk + x, chunkY * chunk + y, known: known), stage: stage)
         }
+    }
+
+    /// The ground is painted as the world it will become, then pulled back toward what it is now:
+    /// rust for land, a dull poisoned brown for water. `stage` runs 0 (untouched) to 4 (turned).
+    private static func barren(_ color: UInt32, stage: Int) -> UInt32 {
+        guard stage < 4 else { return color }
+        let r = Double(color >> 16 & 0xff), g = Double(color >> 8 & 0xff), b = Double(color & 0xff)
+        let light = (r * 0.3 + g * 0.5 + b * 0.2) / 255
+        let water = b > r + 12
+        let dead = water ? (r: 70 + 90 * light, g: 62 + 70 * light, b: 60 + 50 * light)
+                         : (r: 80 + 130 * light, g: 46 + 78 * light, b: 38 + 54 * light)
+        let turned = Double(stage) / 4
+        func blend(_ from: Double, _ to: Double) -> UInt32 { UInt32(from + (to - from) * turned) }
+        return blend(dead.r, r) << 16 | blend(dead.g, g) << 8 | blend(dead.b, b)
     }
 
     private static func color(_ x: Int, _ y: Int, known: UInt8) -> UInt32 {
@@ -357,7 +371,7 @@ enum IslandMap {
             return puff > 0.62 ? 0xd3e3f2 : puff < 0.3 ? 0xffffff : 0xeef5fb
         }
 
-        let rocky = region == .ridge || region == .summit
+        let rocky = region == .rim || region == .vent
         let stream = streamDistance(x, y)
         if let wall = wall(x, y, spot) {
             switch wall.kind {
@@ -380,35 +394,35 @@ enum IslandMap {
 
         if rocky {
             if d < 150 { return shade(0x7d736b, 0x6f655e, 0x8d827a) }
-            return region == .ridge
+            return region == .rim
                 ? shade(0xa89d90, 0x968b7f, 0xbbb0a4)
                 : shade(0xb9afa4, 0xa69c92, 0xcfc6bc)
         }
         if d < 15 { return 0xc9b48a }
-        if region == .beach || d < 270 { return shade(0xe3d3ac, 0xd2c097, 0xeee1c0) }
+        if region == .landing || d < 270 { return shade(0xe3d3ac, 0xd2c097, 0xeee1c0) }
         // Dry scrub where the sand begins.
         if d < 330 { return shade(0xbdb878, 0xaba666, 0xcdc98c) }
         switch region {
-        case .palmGrove: return shade(0xa9ae62, 0x979c55, 0xbcc077)
-        case .stream: return shade(0x8fa85a, 0x7f974e, 0xa2b96c)
+        case .grove: return shade(0xa9ae62, 0x979c55, 0xbcc077)
+        case .glacier: return shade(0x8fa85a, 0x7f974e, 0xa2b96c)
         default: return shade(0x5f8a4a, 0x527a41, 0x6d9855)
         }
     }
 
     /// The whole island from high up, one pixel for every `step` on the ground, giants dotted in.
-    static func overview(known: UInt8, step: Int) -> CGImage {
+    static func overview(known: UInt8, stage: Int, step: Int) -> CGImage {
         let wide = width / step, tall = height / step
         var pixels = [UInt32?](repeating: nil, count: wide * tall)
         pixels.withUnsafeMutableBufferPointer { buffer in
             let cells = buffer.baseAddress!
             DispatchQueue.concurrentPerform(iterations: tall) { y in
-                for x in 0..<wide { cells[y * wide + x] = color(x * step, y * step, known: known) }
+                for x in 0..<wide { cells[y * wide + x] = barren(color(x * step, y * step, known: known), stage: stage) }
             }
         }
         for cellY in 0..<height / giantCell {
             for cellX in 0..<width / giantCell {
                 guard let giant = giant(cellX, cellY), known & bit(giant.region) != 0 else { continue }
-                let leaf: UInt32 = giant.kind == .snag ? 0x8d827a : 0x2c5e34
+                let leaf = barren(giant.kind == .snag ? 0x8d827a : 0x2c5e34, stage: stage)
                 for dy in -2...0 {
                     for dx in -1...1 where giant.x / step + dx >= 0 && giant.x / step + dx < wide && giant.y / step + dy >= 0 {
                         pixels[(giant.y / step + dy) * wide + giant.x / step + dx] = leaf
@@ -465,12 +479,12 @@ enum IslandMap {
             kind = chance < place.chance ? place.kind : nil
         } else {
             switch region {
-            case .beach: kind = chance < 0.03 ? .palm : nil
-            case .palmGrove: kind = chance < (stand > 0.42 ? 0.5 : 0.08) ? .palm : nil
-            case .stream: kind = chance < (stand > 0.55 ? 0.3 : 0.04) ? .tree : chance > 0.95 ? .snag : nil
-            case .jungle: kind = chance < (stand > 0.3 ? 0.9 : 0.12) ? .tree : nil
-            case .ridge: kind = chance < 0.07 ? .snag : nil
-            case .summit: kind = nil
+            case .landing: kind = chance < 0.03 ? .palm : nil
+            case .grove: kind = chance < (stand > 0.42 ? 0.5 : 0.08) ? .palm : nil
+            case .glacier: kind = chance < (stand > 0.55 ? 0.3 : 0.04) ? .tree : chance > 0.95 ? .snag : nil
+            case .forest: kind = chance < (stand > 0.3 ? 0.9 : 0.12) ? .tree : nil
+            case .rim: kind = chance < 0.07 ? .snag : nil
+            case .vent: kind = nil
             }
         }
         guard let kind, isClear(x, y, tall: true) else { return nil }
@@ -491,12 +505,12 @@ enum IslandMap {
             kind = place.kind
         } else {
             switch region {
-            case .beach: kind = chance < 0.012 ? .shell : chance < 0.03 ? .rock : chance < 0.045 ? .driftwood : nil
-            case .palmGrove: kind = chance < 0.03 ? .bush : chance < 0.08 ? .fern : chance < 0.09 ? .rock : chance < 0.11 ? .driftwood : nil
-            case .stream: kind = chance < 0.03 ? .bush : chance < 0.06 ? .fern : chance < 0.11 ? .rock : nil
-            case .jungle: kind = chance < 0.05 ? .bush : chance < 0.11 ? .fern : nil
-            case .ridge: kind = chance < 0.10 ? .rock : nil
-            case .summit: kind = chance < 0.06 ? .rock : nil
+            case .landing: kind = chance < 0.012 ? .shell : chance < 0.03 ? .rock : chance < 0.045 ? .driftwood : nil
+            case .grove: kind = chance < 0.03 ? .bush : chance < 0.08 ? .fern : chance < 0.09 ? .rock : chance < 0.11 ? .driftwood : nil
+            case .glacier: kind = chance < 0.03 ? .bush : chance < 0.06 ? .fern : chance < 0.11 ? .rock : nil
+            case .forest: kind = chance < 0.05 ? .bush : chance < 0.11 ? .fern : nil
+            case .rim: kind = chance < 0.10 ? .rock : nil
+            case .vent: kind = chance < 0.06 ? .rock : nil
             }
         }
         guard let kind, isClear(x, y, tall: false) else { return nil }
