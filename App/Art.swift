@@ -255,52 +255,69 @@ enum Art {
     private static let leafEdge: UInt32 = 0x1f4a2a
     private static let bark: [UInt32] = [0x5c3a1e, 0x86592f, 0xa87a48]
 
+    // Nothing that grows here is green. The shapes are borrowed from the deep sea and from fungi:
+    // shelf brackets, gas bladders, tube worms. Violet and teal, with spots that glow.
+    private static let ink: UInt32 = 0x1c1424
+    private static let flesh: [UInt32] = [0x3a1f5c, 0x6b3fa0, 0xb07adf]
+    private static let stalk: [UInt32] = [0x6f5f96, 0x9d8cc0, 0xcabfe0]
+    private static let gill: [UInt32] = [0x1f6f78, 0x38b3b0]
+    private static let glow: UInt32 = 0x9ff2e6
+
+    /// A tower fungus: a ribbed stalk, shelves up its sides, and a spotted cap wide enough to stand under.
     private static func makeTree(_ variant: Int) -> CGImage {
         let width = 132, height = 150, middle = width / 2
         var pixels = [UInt32?](repeating: nil, count: width * height)
+        func put(_ x: Int, _ y: Int, _ color: UInt32) {
+            if x >= 0, y >= 0, x < width, y < height { pixels[y * width + x] = color }
+        }
 
-        // Trunk, flaring into roots.
-        for y in 80..<height - 1 {
-            let flare = max(0, y - (height - 24))
-            let half = 9 + flare * flare / 30
-            let center = middle + Int((sin(Double(y) / 21 + Double(variant) * 2) * 2).rounded())
+        // Stalk, flaring at the foot.
+        for y in 44..<height - 1 {
+            let flare = max(0, y - (height - 22))
+            let half = 7 + flare * flare / 34
+            let center = middle + Int((sin(Double(y) / 19 + Double(variant) * 2) * 2).rounded())
             for x in center - half...center + half {
                 let across = Double(x - center + half) / Double(half * 2)
-                var tone = across < 0.3 ? 2 : across < 0.68 ? 1 : 0
-                if speck(x, y / 7, variant) < 44 { tone = max(0, tone - 1) }
-                if y < 104 { tone = max(0, tone - 1) }
-                let edge = x == center - half || x == center + half || y == height - 2
-                pixels[y * width + x] = edge ? 0x3b2416 : bark[tone]
+                var tone = across < 0.3 ? 2 : across < 0.7 ? 1 : 0
+                if (x - center) % 4 == 0 { tone = max(0, tone - 1) }
+                put(x, y, x == center - half || x == center + half || y == height - 2 ? ink : stalk[tone])
             }
         }
 
-        // Canopy: overlapping clumps, each lit from the upper left.
-        var clumps: [(x: Double, y: Double, r: Double)] = (0..<17).map { index in
-            let angle = Double(index) * 2.4 + Double(variant) * 1.3
-            let reach = (Double(index) + 0.5) / 17
-            return (Double(middle) + cos(angle) * sqrt(reach) * 41, 54 + sin(angle) * sqrt(reach) * 29,
-                    16 + Double(speck(index, variant, 7) % 8))
-        }
-        clumps.sort { $0.y < $1.y }
-        var owner = [Int?](repeating: nil, count: width * height)
-        for (index, clump) in clumps.enumerated() {
-            for y in max(0, Int(clump.y - clump.r) - 2)...min(height - 1, Int(clump.y + clump.r) + 2) {
-                for x in max(0, Int(clump.x - clump.r) - 2)...min(width - 1, Int(clump.x + clump.r) + 2) {
-                    let ragged = Double(speck(x / 3, y / 3, index) % 3) - 1
-                    if hypot(Double(x) - clump.x, Double(y) - clump.y) < clump.r + ragged { owner[y * width + x] = index }
+        // Shelves, alternating sides.
+        for (index, level) in [112, 90, 70].enumerated() {
+            let side = (index + variant) % 2 == 0 ? -1 : 1
+            let reach = 24 + speck(index, variant, 5) % 10
+            for step in 0...reach {
+                let x = middle + side * (6 + step)
+                let thick = Int((7 * sqrt(1 - pow(Double(step) / Double(reach), 2))).rounded())
+                for dy in 0...thick {
+                    let edge = dy == 0 || dy == thick || step == reach
+                    put(x, level + dy - thick / 2, edge ? ink : dy < thick / 2 ? flesh[dy < 2 ? 2 : 1] : gill[(x + dy) % 2])
                 }
             }
         }
-        for y in 0..<height {
-            for x in 0..<width {
-                guard let index = owner[y * width + x] else { continue }
-                let rim = x == 0 || y == 0 || x == width - 1 || owner[y * width + x - 1] == nil
-                    || owner[y * width + x + 1] == nil || owner[(y - 1) * width + x] == nil || owner[(y + 1) * width + x] == nil
-                let clump = clumps[index]
-                var light = ((Double(x) - clump.x) * -0.55 + (Double(y) - clump.y) * -0.83) / clump.r
-                light += Double(speck(x, y, variant)) / 255 * 0.36 - 0.18
-                light -= (Double(y) - 54) / 29 * 0.22
-                pixels[y * width + x] = rim ? leafEdge : leaves[light > 0.5 ? 3 : light > 0.02 ? 2 : light > -0.5 ? 1 : 0]
+
+        // The cap: a dome with a wavy skirt, gills showing underneath.
+        let rx = Double(50 + variant * 5), ry = 34.0, top = 48.0
+        for x in 0..<width {
+            let u = (Double(x) - Double(middle)) / rx
+            guard abs(u) < 1 else { continue }
+            let crown = Int(top - ry * sqrt(1 - u * u))
+            let skirt = Int(top + 5 + 3 * sin(Double(x) / 5 + Double(variant)))
+            for y in crown...skirt + 4 {
+                let v = (Double(y) - top) / ry
+                if y > skirt {
+                    put(x, y, y == skirt + 4 ? ink : gill[(x / 2) % 2])
+                    continue
+                }
+                let light = -u * 0.55 - v * 0.8 + Double(speck(x, y, variant)) / 255 * 0.3 - 0.15
+                // Spots of light, bigger toward the crown.
+                let cellX = x / 13, cellY = (y + 60) / 11
+                let spotX = cellX * 13 + 3 + speck(cellX, cellY, 9) % 7, spotY = cellY * 11 - 60 + 3 + speck(cellY, cellX, 4) % 5
+                let spot = hypot(Double(x - spotX), Double(y - spotY)) < (v < -0.5 ? 2.6 : 1.7)
+                let edge = y == crown || y == skirt || abs(u) > 0.985
+                put(x, y, edge ? ink : spot ? glow : flesh[light > 0.45 ? 2 : light > -0.1 ? 1 : 0])
             }
         }
         return Bitmap.image(width: width, height: height, pixels: pixels)
@@ -315,49 +332,48 @@ enum Art {
         let foot = (x: Double(width / 2), y: Double(height - 2))
         let crown = (x: Double(width / 2 + 6 + variant * 3), y: 48.0)
 
-        // A bowed, ringed trunk.
+        // A bowed, ringed stem, like kelp standing in air.
         for step in 0...400 {
             let along = Double(step) / 400
             let x = foot.x + (crown.x - foot.x) * along - sin(along * .pi) * 9
             let y = Int(foot.y + (crown.y - foot.y) * along)
-            let half = Int((6.5 - 2.5 * along + max(0, 1 - along * 10) * 4).rounded())
+            let half = Int((5.5 - 2.5 * along + max(0, 1 - along * 10) * 4).rounded())
             for dx in -half...half {
                 let across = Double(dx + half) / Double(half * 2)
-                let tone = y % 7 == 0 ? 0 : across < 0.35 ? 2 : across < 0.7 ? 1 : 0
-                put(Int(x) + dx, y, abs(dx) == half || step == 0 ? 0x3b2416 : [0x7a5230, 0xa87a48, 0xc9a26b][tone])
+                let tone = y % 9 == 0 ? 0 : across < 0.35 ? 1 : 0
+                put(Int(x) + dx, y, abs(dx) == half || step == 0 ? ink : y % 9 == 0 ? 0x154850 : gill[tone])
             }
         }
 
-        // Fronds: a rib that arcs out and droops, with leaflets hanging from it.
-        for degrees in [112.0, 68, 140, 40, 170, 10, 205, -12] {
-            let angle = (degrees + Double(variant) * 5) * .pi / 180
-            let length = 62 + Double(speck(Int(degrees), variant, 3) % 12)
+        // Tendrils arc out from the head, and a breath pod hangs at the end of each: full, or drawn down and slack.
+        func pod(_ cx: Int, _ cy: Int, _ radius: Int) {
+            for dy in -radius...radius {
+                for dx in -radius...radius where dx * dx + dy * dy <= radius * radius {
+                    let far = dx * dx + dy * dy
+                    let shine = dx < 0 && dy < 0 && far < radius * radius / 2 && far > radius * radius / 8
+                    put(cx + dx, cy + dy, far > (radius - 1) * (radius - 1) ? ink
+                        : !nuts ? flesh[0] : shine ? 0xf2fffb : dy > radius / 3 ? 0x5fc9c4 : glow)
+                }
+            }
+        }
+        for (index, degrees) in [100.0, 62, 138, 28, 168, 200, -14].enumerated() {
+            let angle = (degrees + Double(variant) * 6) * .pi / 180
+            let length = 34 + Double(speck(Int(degrees), variant, 3) % 16)
+            var tip = (x: 0, y: 0)
             for step in 0..<Int(length * 3) {
                 let along = Double(step) / (length * 3)
-                let x = Int(crown.x + cos(angle) * length * along)
-                let y = Int(crown.y - sin(angle) * length * along + 30 * along * along)
-                var hang = Int(3 + 14 * pow(sin(.pi * min(1, along * 1.08)), 0.7))
-                if (x + variant) % 5 == 0 { hang -= 4 }
-                put(x, y - 2, leafEdge)
-                put(x, y - 1, leaves[3])
-                for drop in 0...max(0, hang) {
-                    put(x, y + drop, drop == hang ? leafEdge : leaves[drop * 3 < hang ? 2 : drop * 3 < hang * 2 ? 1 : 0])
-                }
+                tip = (Int(crown.x + cos(angle) * length * along), Int(crown.y - sin(angle) * length * along + 26 * along * along))
+                put(tip.x, tip.y, flesh[1])
+                put(tip.x, tip.y + 1, ink)
+                put(tip.x, tip.y - 1, ink)
             }
+            pod(tip.x, tip.y + (nuts ? 6 : 3), nuts ? 6 + (index + variant) % 4 : 3)
         }
-
-        for nut in nuts ? [(-5, 6), (4, 7), (-1, 11)] : [] {
-            for dy in -4...4 {
-                for dx in -4...4 where dx * dx + dy * dy <= 16 {
-                    put(Int(crown.x) + nut.0 + dx, Int(crown.y) + nut.1 + dy,
-                        dx * dx + dy * dy > 9 ? 0x3b2416 : dx < 0 && dy < 0 ? 0xa87a48 : 0x7a4a22)
-                }
-            }
-        }
+        pod(Int(crown.x), Int(crown.y) - 2, nuts ? 11 : 5)
         return Bitmap.image(width: width, height: height, pixels: pixels)
     }
 
-    /// A dead giant, bleached by salt and sun.
+    /// A dead giant: what is left is pale as bone and branched like coral.
     static let snags = (0..<2).map(makeSnag)
 
     private static func makeSnag(_ variant: Int) -> CGImage {
@@ -391,7 +407,7 @@ enum Art {
             for x in 0..<width where solid[y * width + x] {
                 let rim = !isSolid(x - 1, y) || !isSolid(x + 1, y) || !isSolid(x, y - 1) || !isSolid(x, y + 1)
                 let lit = !isSolid(x - 3, y - 1), dark = !isSolid(x + 3, y + 1) || speck(x, y / 6, variant) < 36
-                pixels[y * width + x] = rim ? 0x3b3430 : lit ? 0xd6cec4 : dark ? 0x7d736b : 0xa89d92
+                pixels[y * width + x] = rim ? ink : lit ? 0xe9e2f5 : dark ? 0x7f739c : 0xb9aed0
             }
         }
         return Bitmap.image(width: width, height: height, pixels: pixels)
@@ -404,48 +420,62 @@ enum Art {
         for y in 0..<height {
             for x in 0..<width {
                 let dx = (Double(x) - 35.5) / 36, dy = (Double(y) - 10.5) / 11
-                pixels.append(dx * dx + dy * dy < 1 ? 0x10301c : nil)
+                pixels.append(dx * dx + dy * dy < 1 ? 0x1a1030 : nil)
             }
         }
         return Bitmap.image(width: width, height: height, pixels: pixels)
     }()
 
-    static let bush = Bitmap.image([
-        "..dddd...",
-        ".dglggd..",
-        "dglgggGd.",
-        "dgggggGGd",
-        ".dGGGGGd.",
+    private static func alien(_ rows: [String]) -> CGImage {
+        let inks: [Character: UInt32] = [
+            "k": ink, "V": 0x3a1f5c, "v": 0x6b3fa0, "m": 0xb07adf, "t": 0x1f6f78, "T": 0x38b3b0, "c": glow,
+            "o": 0xff8a4c, "y": 0xffd166, "w": 0xf2ecff, "p": 0xe85d9a, "r": 0xb3273c, "g": 0x8a8f9c, "G": 0x4b4f5c, "s": 0xdfe6f0,
+        ]
+        return Bitmap.image(width: rows[0].count, height: rows.count, pixels: rows.flatMap { $0.map { inks[$0] } })
+    }
+
+    /// A clump of polyps with fat orange bulbs you can eat.
+    static let bush = alien([
+        "..o...o..",
+        ".kok.kok.",
+        ".kVkkkVk.",
+        "kVvVvVvVk",
+        "kVVvVvVVk",
+        ".kkkkkkk.",
     ])
-    static let rock = Bitmap.image([
-        "..CCCC...",
-        ".CvvvcC..",
-        "CvvvccCC.",
-        "CvvcccCCC",
-        ".CCCCCCC.",
+    /// Ore: it grows in crystals here, and catches the light.
+    static let rock = alien([
+        "....k....",
+        "..k.sk.k.",
+        ".kskgGksk",
+        ".kgGGGgGk",
+        "kgGGsGGGk",
+        ".kkkkkkk.",
     ])
-    static let fern = Bitmap.image([
-        "l..l..l",
-        ".l.l.l.",
-        ".lglgl.",
-        "..ggg..",
-        "..GgG..",
+    /// Tube worms: red plumes on pale tubes, tough enough to twist into line.
+    static let fern = alien([
+        "r.p.r.p",
+        "prprprp",
+        ".w.w.w.",
+        ".w.w.w.",
+        ".wkwkw.",
+        ".kkkkk.",
     ])
-    /// Wood the sea threw back, bleached grey.
-    static let driftwood = Bitmap.image([
-        "..........CC..",
-        ".CCCCCCCCCvC..",
-        "CvvvvcvvvvccCC",
-        "CccccccCCcccvC",
-        ".CCCCCC..CCCC.",
+    /// A shelf that fell off a tower fungus and dried where it lay.
+    static let driftwood = alien([
+        "....kkkkkk....",
+        ".kkkmvvvvmkkk.",
+        "kmvvvVvvVvvvmk",
+        "kVVVVkVVVkVVVk",
+        ".kkkk.kkk.kkk.",
     ])
-    /// Nobody washes ashore with bedding: a bed is fallen palm fronds laid on the sand.
-    static let bedroll = Bitmap.image([
-        ".dd..dddd..dd.",
-        "dGgddGggGddgGd",
-        "dgGgGgGGgGgGgd",
-        "dGgGgGggGgGgGd",
-        ".ddGddGGddGdd.",
+    /// The pad from the pod's couch.
+    static let bedroll = alien([
+        ".kkkkkkkkkkkk.",
+        "ksgsgsgsgsgsgk",
+        "kgsgsgsgsgsgsk",
+        "ksgsgsgsgsgsgk",
+        ".kkkkkkkkkkkk.",
     ])
     static let cairn = Bitmap.image([
         "....CC....",
@@ -455,7 +485,8 @@ enum Art {
         "CvvcCvvccC",
         ".CCCCCCCC.",
     ])
-    static let shell = Bitmap.image([".pp.", "pwwp", ".pp."])
+    /// Something small with a lit shell. It is food.
+    static let shell = alien([".kkk.", "kcTck", "kTcTk", ".kkk."])
 
     // MARK: Camp
 
@@ -551,19 +582,19 @@ enum Art {
 
     // MARK: Sights
 
-    /// What is left of a boat that did not make it either.
+    /// A piece of the ship that came down somewhere else.
     static let wreck = Bitmap.image([
         "......................k....................",
         ".....................kk....................",
-        "....................kTk....................",
-        "...................kTk.....................",
-        "......k...k...k...kTk......kkkkkkk.........",
-        ".....kTk.kTk.kTk.kTk....kkkttttttTkk.......",
-        "....kTk.kTk.kTk.kTkkkkkkttttttttttTTkk.....",
-        "...kTkkkTkkkTkkkTtttttttttnttttnttttTTk....",
-        "..kTttttttttttttttttttttttttttttttttTTTk...",
-        "...kTTttttttttttttTTTTttttttttttttTTTTk....",
-        "....kkTTTTTTTTTTTTkkkkTTTTTTTTTTTTTkkk.....",
+        "....................kCk....................",
+        "...................kCk.....................",
+        "......k...k...k...kCk......kkkkkkk.........",
+        ".....kCk.kCk.kCk.kCk....kkkccccccCkk.......",
+        "....kCk.kCk.kCk.kCkkkkkkccccccccccCCkk.....",
+        "...kCkkkCkkkCkkkCcccccccccvccccvccccCCk....",
+        "..kCccccccccccccccccccccccccccccccccCCCk...",
+        "...kCCccccccccccccCCCCccccccccccccCCCCk....",
+        "....kkCCCCCCCCCCCCkkkkCCCCCCCCCCCCCkkk.....",
         "......kkkkkkkkkkkk....kkkkkkkkkkkkk........",
     ])
 
@@ -588,8 +619,9 @@ enum Art {
         "CCckkkkkkkkkkkkkkkkkkkkcCC",
     ])
 
-    static let gullA = Bitmap.image(["w...w", ".www."])
-    static let gullB = Bitmap.image([".....", "wwwww"])
+    /// Floaters: bags of gas that drift where there is something to eat.
+    static let gullA = alien(["..kkk..", ".kmwmk.", "kmwmmmk", "kmmmmmk", ".kkkkk.", ".p.p.p.", "..p.p..", ".p...p."])
+    static let gullB = alien(["..kkk..", ".kmwmk.", "kmwmmmk", "kmmmmmk", ".kkkkk.", "..p.p..", ".p.p.p.", "..p.p.."])
 
     // MARK: World bits
 

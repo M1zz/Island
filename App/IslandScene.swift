@@ -156,7 +156,7 @@ final class IslandScene: SKScene {
 
         place(SKSpriteNode(), Art.mountain, x: IslandMap.peak.x, y: IslandMap.peak.y)
 
-        // Sights: a wreck, a cave, old bones, gulls over the good spots, a sail that never turns.
+        // Sights: a wreck, a cave, old bones, floaters over the good spots.
         sights.append((place(SKSpriteNode(), Art.wreck, x: IslandMap.wreck.x, y: IslandMap.wreck.y), .landing, 0))
         sights.append((place(SKSpriteNode(), Art.cave, x: IslandMap.cave.x, y: IslandMap.cave.y + 6), .rim, 0))
         sights.forEach { $0.node.setScale(2) }
@@ -174,21 +174,10 @@ final class IslandScene: SKScene {
                 let reach = CGFloat(30 + index * 14)
                 let round = CGPath(ellipseIn: CGRect(x: -reach, y: -reach * 0.4, width: reach * 2, height: reach * 0.8), transform: nil)
                 gull.run(.repeatForever(.follow(round, asOffset: false, orientToPath: false, duration: 7 + Double(index) * 2.5)))
-                gull.run(.repeatForever(.animate(with: [stamp(Art.gullA), stamp(Art.gullB)], timePerFrame: 0.35)))
+                gull.run(.repeatForever(.animate(with: [stamp(Art.gullA), stamp(Art.gullB)], timePerFrame: 0.6)))
                 flock.addChild(gull)
             }
         }
-        // Far out past the wreck a ship goes by now and then. It does not see you.
-        let passing = SKSpriteNode(texture: stamp(Art.ship))
-        passing.alpha = 0.8
-        passing.zPosition = -800
-        passing.position = point(IslandMap.wreck.x + 1200, IslandMap.height - 70)
-        addChild(passing)
-        passing.run(.repeatForever(.sequence([
-            .wait(forDuration: 50),
-            .moveBy(x: -2400, y: 0, duration: 110),
-            .moveBy(x: 2400, y: 0, duration: 0),
-        ])))
 
         // Camp
         let bed = IslandMap.bed
@@ -490,9 +479,6 @@ final class IslandScene: SKScene {
               let region = sprite.userData?["region"] as? Region else { return }
         sprite.isHidden = !known.contains(region) || (spent.contains(id) && kind.isCarriedOff)
         sprite.texture = stamp(picture(of: kind, id))
-        // Before the planet turns, what grows here is not green.
-        sprite.color = NSColor(red: 0.55, green: 0.3, blue: 0.62, alpha: 1)
-        sprite.colorBlendFactor = kind == .rock ? 0 : 0.6 * CGFloat(4 - stage) / 4
         sprite.setScale(1)
         sprite.alpha = 1
     }
