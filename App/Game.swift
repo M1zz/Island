@@ -44,6 +44,8 @@ final class Game: ObservableObject {
     @Published private(set) var saveError: String?
     @Published var crafting = false
     @Published var paused = false
+    /// The opening is still playing: nothing ticks and any key skips it.
+    @Published var intro = true
 
     @Published var mapOpen = false {
         didSet { scene.setMap(mapOpen) }
@@ -99,6 +101,7 @@ final class Game: ObservableObject {
             return press(event.keyCode, down: event.type == .keyDown, repeated: event.isARepeat) ? nil : event
         }
         refresh()
+        scene.playIntro { [weak self] in self?.intro = false }
     }
 
     var isBusy: Bool { working != nil || sleeping }
@@ -119,6 +122,10 @@ final class Game: ObservableObject {
     // MARK: What the player does
 
     private func press(_ key: UInt16, down: Bool, repeated: Bool) -> Bool {
+        if intro {
+            if down, !repeated { scene.skipIntro() }
+            return true
+        }
         let moves = Key.left.union(Key.right).union(Key.up).union(Key.down)
         if moves.contains(key) {
             if down { held.insert(key) } else { held.remove(key) }
@@ -433,7 +440,7 @@ final class Game: ObservableObject {
             held.removeAll()
             return
         }
-        guard !paused, !crafting, !mapOpen else {
+        guard !paused, !crafting, !mapOpen, !intro else {
             scene.move(dx: 0, dy: 0, seconds: delta, canWalk: canWalk)
             return
         }

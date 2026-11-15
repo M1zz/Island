@@ -739,6 +739,26 @@ final class IslandScene: SKScene {
         progressFill.xScale = CGFloat(min(max(value, 0), 1))
     }
 
+    private weak var intro: Intro?
+
+    /// Plays how the castaway got here, then leaves them lying on the sand to get up.
+    func playIntro(_ done: @escaping () -> Void) {
+        hero.texture = texture(Art.heroAsleep)
+        hero.size = CGSize(width: Art.heroAsleep.width, height: Art.heroAsleep.height)
+        let intro = Intro(size: size) { [weak self] in
+            self?.run(.sequence([.wait(forDuration: 1.6), .run {
+                guard let self else { return }
+                self.hero.texture = self.idleTexture
+                self.hero.size = self.idleTexture.size()
+                done()
+            }]))
+        }
+        eye.addChild(intro)
+        self.intro = intro
+    }
+
+    func skipIntro() { intro?.skip() }
+
     func setAsleep(_ sleeping: Bool) {
         guard sleeping != asleep else { return }
         asleep = sleeping

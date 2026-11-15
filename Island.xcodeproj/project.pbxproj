@@ -18,6 +18,7 @@
 		7A61EA8AD497E93A13E2EC00 /* IslandCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB159BF1E4C01733B9C6371E /* IslandCoreTests.swift */; };
 		7AA0CEF38E0BE5F694A4AD8F /* Sound.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A9352852A91F97B1306BBA /* Sound.swift */; };
 		8FF66EC9FCEBE6B1B5CC6E91 /* IslandScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB67316A1A9BD6B489314581 /* IslandScene.swift */; };
+		9F11A311717F304476E4289B /* Intro.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADC6C9FD31A248CD127DB8BF /* Intro.swift */; };
 		AB57D97CB369E9C8262AF7E4 /* libIslandCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2056683D63309B7A5359A0F0 /* libIslandCore.a */; };
 		B295C3DAC09D098B7E38EDE3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C5A46B75FA70E4577FF726A3 /* Assets.xcassets */; };
 		BED324403636E5FA79A7805F /* IslandMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C844D91EA5FB30AC34D902 /* IslandMap.swift */; };
@@ -80,6 +81,7 @@
 		A4C1E86E8727CA396BE619C6 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		A827A0DDE75B564298001762 /* PixelKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelKit.swift; sourceTree = "<group>"; };
 		AB67316A1A9BD6B489314581 /* IslandScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandScene.swift; sourceTree = "<group>"; };
+		ADC6C9FD31A248CD127DB8BF /* Intro.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intro.swift; sourceTree = "<group>"; };
 		BB159BF1E4C01733B9C6371E /* IslandCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IslandCoreTests.swift; sourceTree = "<group>"; };
 		C38F54953B58F883D94CDC31 /* IslandCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IslandCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C5A46B75FA70E4577FF726A3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -135,6 +137,7 @@
 				C5A46B75FA70E4577FF726A3 /* Assets.xcassets */,
 				0456F6A36101987FFD3E52CE /* Game.swift */,
 				F290D1D745A3139168DACB67 /* GameView.swift */,
+				ADC6C9FD31A248CD127DB8BF /* Intro.swift */,
 				6F24E760227371C13BFF30BB /* IslandApp.swift */,
 				48C844D91EA5FB30AC34D902 /* IslandMap.swift */,
 				AB67316A1A9BD6B489314581 /* IslandScene.swift */,
@@ -439,6 +442,7 @@
 				E8EBD223024F421B1EC32374 /* Art.swift in Sources */,
 				40A0D228EB83940FD5A6F2E5 /* Game.swift in Sources */,
 				38A50BF8982D60004B0BB1DC /* GameView.swift in Sources */,
+				9F11A311717F304476E4289B /* Intro.swift in Sources */,
 				5C775D11CD4B78F6104961C0 /* IslandApp.swift in Sources */,
 				BED324403636E5FA79A7805F /* IslandMap.swift in Sources */,
 				8FF66EC9FCEBE6B1B5CC6E91 /* IslandScene.swift in Sources */,

@@ -13,6 +13,12 @@ struct GameView: View {
     var body: some View {
         SpriteView(scene: game.scene)
             .frame(width: CGFloat(IslandMap.viewWidth) * px, height: CGFloat(IslandMap.viewHeight) * px)
+            // Nothing but the picture while the opening plays.
+            .overlay { hud.opacity(game.intro ? 0 : 1).animation(.easeIn(duration: 0.5), value: game.intro) }
+    }
+
+    private var hud: some View {
+        Color.clear
             // No health bar: when the body is failing, the edges of the world go red.
             .overlay {
                 Rectangle()
